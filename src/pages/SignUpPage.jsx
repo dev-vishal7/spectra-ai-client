@@ -3,16 +3,33 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const SignUp = () => {
-  const [orgName, setOrgName] = useState(""); // Business Name
-  const [email, setEmail] = useState(""); // Admin Email (Single)
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    orgName: "",
+    email: "",
+    phoneNumber: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const onChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
   const handleSignUp = async (e) => {
     e.preventDefault();
+    const {
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      orgName,
+      password,
+      confirmPassword,
+    } = formData;
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -20,21 +37,22 @@ const SignUp = () => {
     }
 
     try {
-      const response = await axios.post("https://your-api.com/create-org", {
-        orgName,
+      const response = await axios.post("/tenant/create", {
+        firstName,
+        lastName,
+        tenantName: orgName,
         email,
         password,
         phoneNumber,
       });
-
-      if (response.data.success) {
-        // After successful organization creation, auto-login
-        const loginResponse = await axios.post("https://your-api.com/login", {
+      if (response.data) {
+        const loginResponse = await axios.post("/users/sign-in", {
           email,
           password,
         });
-        if (loginResponse.data.success) {
-          navigate("/dashboard"); // Redirect to dashboard
+
+        if (loginResponse.data) {
+          navigate("/dashboard");
         }
       } else {
         setError("Organization creation failed");
@@ -61,30 +79,50 @@ const SignUp = () => {
           )}
 
           <form onSubmit={handleSignUp} className="space-y-6">
-            {/* Business Name */}
             <input
               type="text"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
+              name="orgName"
+              value={formData.orgName}
+              onChange={onChange}
               placeholder="Business Name"
               className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               required
             />
-
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={onChange}
+                placeholder="First Name"
+                className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={onChange}
+                placeholder="Last Name"
+                className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
             {/* Email & Phone Number Row */}
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
+                value={formData.email}
+                onChange={onChange}
                 placeholder="Business Email"
                 className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               />
               <input
                 type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={onChange}
                 placeholder="Phone Number"
                 className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
@@ -95,16 +133,18 @@ const SignUp = () => {
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
+                value={formData.password}
+                onChange={onChange}
                 placeholder="Password"
                 className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               />
               <input
                 type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={onChange}
                 placeholder="Confirm Password"
                 className="w-full px-4 py-2 border border-gray-600 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required

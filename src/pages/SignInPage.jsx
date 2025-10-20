@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { addHeaderToAxiosConfig } from "../utils/add-header-to-axios-config";
 
-const SignIn = () => {
+const SignIn = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -11,17 +12,22 @@ const SignIn = () => {
   const handleSignIn = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("https://your-api.com/login", {
+      const response = await axios.post("/users/sign-in", {
         email,
         password,
       });
-      if (response.data.success) {
-        navigate("/dashboard"); // Redirect to user dashboard after login
+      if (response.data) {
+        addHeaderToAxiosConfig(
+          "Authorization",
+          "Bearer " + response.data.token
+        );
+        onLogin(response.data.user);
+        navigate("/dashboard");
       } else {
         setError("Invalid credentials");
       }
     } catch (err) {
-      setError("Something went wrong");
+      setError("Something went wrong. Please check you email and password");
     }
   };
 
