@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { addHeaderToAxiosConfig } from "../utils/add-header-to-axios-config";
+import { setCookie } from "../utils/cookie";
 
-const SignUp = () => {
+const SignUp = ({ onLogin }) => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -52,12 +54,20 @@ const SignUp = () => {
         });
 
         if (loginResponse.data) {
+          addHeaderToAxiosConfig(
+            "Authorization",
+            "Bearer " + loginResponse.data.token
+          );
+          setCookie("Authorization", "Bearer " + loginResponse.data.token);
+
+          onLogin(loginResponse.data.user);
           navigate("/dashboard");
         }
       } else {
         setError("Organization creation failed");
       }
     } catch (err) {
+      console.log("err", err);
       setError("Something went wrong");
     }
   };

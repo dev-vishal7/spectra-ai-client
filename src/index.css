@@ -6,3 +6,9 @@
     color: #ffffff;
   }
 }
+
+body {
+  background: #0d1117; /* darker for depth */
+  font-family: "Inter", sans-serif;
+  @apply text-white bg-[#0f172a];
+}

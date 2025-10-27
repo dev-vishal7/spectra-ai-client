@@ -16,19 +16,24 @@ const Header = ({ user, onLogout }) => {
   }, []);
 
   return (
-    <header className="bg-gray-900 text-white px-6 py-1 flex justify-between items-center shadow-md h-14">
-      <h1 className="text-lg font-semibold tracking-wide">Spectra</h1>
+    <header
+      className="h-14 text-white px-6 flex justify-between items-center bg-[#1f2937] border-b border-gray-700 shadow-sm sticky top-0 z-10"
+      style={{ padding: ".9rem" }}
+    >
+      <h1 className="text-lg text-white font-semibold tracking-wide">
+        Spectra
+      </h1>
 
       {user && (
         <div className="relative" ref={dropdownRef}>
           <button
-            className="flex items-center space-x-2 focus:outline-none"
+            className="flex items-center space-x-2 focus:outline-none cursor-pointer"
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold uppercase">
               {user.firstName?.[0]}
             </div>
-            <span className="hidden sm:block text-sm font-medium">
+            <span className="hidden sm:block text-sm font-medium capitalize">
               {user.firstName} {user.lastName}
             </span>
             <svg
@@ -44,7 +49,7 @@ const Header = ({ user, onLogout }) => {
 
           {/* Dropdown */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50 overflow-hidden">
+            <div className="absolute border cursor-pointer right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50 overflow-hidden">
               <button
                 onClick={onLogout}
                 className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 text-white"

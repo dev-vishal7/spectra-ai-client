@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { addHeaderToAxiosConfig } from "../utils/add-header-to-axios-config";
+import { setCookie } from "../utils/cookie";
 
 const SignIn = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ const SignIn = ({ onLogin }) => {
           "Authorization",
           "Bearer " + response.data.token
         );
+        setCookie("Authorization", "Bearer " + response.data.token);
         onLogin(response.data.user);
         navigate("/dashboard");
       } else {

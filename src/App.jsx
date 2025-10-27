@@ -2,10 +2,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
+import Users from "./pages/Users";
+import UserForm from "./pages/UserForm";
+import SourcesPage from "./pages/SourcesPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -41,13 +44,7 @@ function App() {
             <div className="flex-1 p-6 bg-gray-900">
               <Routes>
                 {/* Public Routes */}
-                <Route
-                  path="/sign-in"
-                  element={<SignInPage onLogin={handleLogin} />}
-                />
-                <Route path="/sign-up" element={<SignUpPage />} />
 
-                {/* Protected Routes */}
                 <Route
                   path="/dashboard"
                   element={
@@ -56,8 +53,39 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <Users />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users/create"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <UserForm />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users/edit/:id"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <UserForm />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/sources"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <SourcesPage />
+                    </ProtectedRoute>
+                  }
+                />
 
-                {/* Default Route - Redirect based on user authentication */}
                 <Route
                   path="*"
                   element={<Navigate to={user ? "/dashboard" : "/sign-in"} />}
@@ -75,7 +103,10 @@ function App() {
             path="/sign-in"
             element={<SignInPage onLogin={handleLogin} />}
           />
-          <Route path="/sign-up" element={<SignUpPage />} />
+          <Route
+            path="/sign-up"
+            element={<SignUpPage onLogin={handleLogin} />}
+          />
           <Route path="*" element={<Navigate to="/sign-in" />} />
         </Routes>
       )}
