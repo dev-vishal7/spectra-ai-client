@@ -13,6 +13,11 @@ const Sidebar = () => {
       icon: <LayoutDashboard size={20} />,
     },
     {
+      name: "Layout",
+      path: "/dashboard-builder/factory-layout",
+      icon: <LayoutDashboard size={20} />,
+    },
+    {
       name: "Sources",
       path: "/sources",
       icon: <Folder size={20} />,
