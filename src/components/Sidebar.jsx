@@ -14,7 +14,7 @@ const Sidebar = () => {
     },
     {
       name: "Layout",
-      path: "/dashboard-builder/factory-layout",
+      path: "/builder/factory-layout",
       icon: <LayoutDashboard size={20} />,
     },
     {
@@ -50,7 +50,7 @@ const Sidebar = () => {
 
       <ul className="space-y-2">
         {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
+          const isActive = location.pathname.includes(item.path);
           return (
             <li key={item.name}>
               <Link

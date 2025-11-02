@@ -1,25 +1,29 @@
 import React from "react";
-import ContactSection from "./components/ContactSection";
-import HeroSection from "./components/HeroSection";
-import MicroSetup from "./components/MicroSetup";
-import PhysicalOpsProblem from "./components/PhysicalOpsProblem";
-import Pricing from "./components/Pricing";
-import SimpleProcess from "./components/SimpleProcess";
-import WhyChoose from "./components/WhyChoose";
-
+import Header from "./components/Header";
+import Hero from "./components/Hero";
+import { ProblemSection } from "./components/ProblemSection";
+import { FeaturesSection } from "./components/FutureSection";
+import { HowItWorks } from "./components/HowItWorks";
+import { UseCasesSection } from "./components/UseCasesSection";
+import { WhySpectraSection } from "./components/WhySpectraSection";
+import { AnalogySection } from "./components/AnalogySection";
+import { PricingSection } from "./components/PricingSection";
+import { CTASection } from "./components/CTASection";
+import { Footer } from "./components/Footer";
 const LandingPage = () => {
   return (
-    <div className="font-sans text-gray-900">
-      <HeroSection />
-      <PhysicalOpsProblem />
-      <MicroSetup />
-      <SimpleProcess />
-      <WhyChoose />
-      <Pricing />
-      <ContactSection />
-      <footer className="py-10 bg-gray-900 text-white text-center text-sm">
-        © 2025 Spectra. All rights reserved.
-      </footer>
+    <div className="font-sans bg-gray-200 text-gray-900">
+      <Header />
+      <Hero />
+      <ProblemSection />
+      <FeaturesSection />
+      <HowItWorks />
+      <UseCasesSection />
+      <WhySpectraSection />
+      <AnalogySection />
+      <PricingSection />
+      <CTASection />
+      <Footer />
     </div>
   );
 };

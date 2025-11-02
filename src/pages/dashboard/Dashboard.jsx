@@ -206,7 +206,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-white mb-1">
-                IoT Analytics Platform
+                Analytics Platform
               </h1>
               <p className="text-slate-400">
                 Real-time monitoring & AI-powered insights

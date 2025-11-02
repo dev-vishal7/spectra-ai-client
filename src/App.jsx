@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
-import Dashboard from "./pages/dashboard/Dashboard";
+import Dashboard from "./pages/dashboard-new";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -15,6 +15,8 @@ import ConnectSources from "./pages/ConnectSources";
 import ConfigureDashboard from "./pages/ConfigureDashboard";
 import ChooseTemplate from "./pages/ChooseTemplate";
 import LandingPage from "./pages/landing-page";
+import DashboardPreview from "./pages/DashboardPreview";
+import FactoryLayout from "./pages/FactorySetup";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -93,38 +95,17 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/dashboard-builder/factory-layout"
-                  element={
-                    <ProtectedRoute user={user}>
-                      <FactorySetup />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard-builder/connect-sources"
-                  element={
-                    <ProtectedRoute user={user}>
-                      <ConnectSources />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard-builder/choose-template"
-                  element={
-                    <ProtectedRoute user={user}>
-                      <ChooseTemplate />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard-builder/configure"
-                  element={
-                    <ProtectedRoute user={user}>
-                      <ConfigureDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="builder">
+                  <Route path="factory-layout" element={<FactoryLayout />} />
+                  <Route path="choose-template" element={<ChooseTemplate />} />
+                  <Route path="configure" element={<ConfigureDashboard />} />
+                </Route>
+
+                <Route path="dashboard">
+                  <Route path="preview/:id" element={<DashboardPreview />} />
+                  {/* <Route path="view/:id" element={<LiveDashboardView />} /> */}
+                  {/* <Route index element={<DashboardList />} /> */}
+                </Route>
 
                 <Route
                   path="*"
@@ -139,7 +120,7 @@ function App() {
       {/* If user is not logged in, only show the sign-in or sign-up routes */}
       {!user && (
         <Routes>
-          {/* <Route path="/" element={<LandingPage />} /> */}
+          <Route path="/" element={<LandingPage />} />
           <Route
             path="/sign-in"
             element={<SignInPage onLogin={handleLogin} />}
@@ -148,7 +129,7 @@ function App() {
             path="/sign-up"
             element={<SignUpPage onLogin={handleLogin} />}
           />
-          <Route path="*" element={<Navigate to="/sign-in" />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       )}
     </div>

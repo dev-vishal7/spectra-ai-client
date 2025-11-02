@@ -122,13 +122,12 @@ const FactoryLayout = () => {
       localStorage.setItem("currentLayoutId", response.data.layout._id);
 
       toast.success("Layout saved successfully!");
-      navigate("/dashboard-builder/choose-template");
+      navigate("/builder/choose-template");
     } catch (error) {
       console.error("Save error:", error);
       toast.error(error.response?.data?.message || "Failed to save layout");
     } finally {
       setSaving(false);
-      navigate("/dashboard-builder/choose-template");
     }
   };
 

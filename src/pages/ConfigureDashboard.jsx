@@ -21,8 +21,10 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 
-// 🎯 Domain Categories
+// Domain Categories
 const DOMAINS = [
   {
     id: "manufacturing",
@@ -73,90 +75,6 @@ const DOMAINS = [
     ],
   },
   {
-    id: "process",
-    name: "Process Control",
-    icon: Activity,
-    color: "purple",
-    gradient: "from-purple-500 to-pink-500",
-    prompts: [
-      "Monitor all critical process parameters in real-time",
-      "Display pressure and temperature with safety limits",
-      "Track batch processing with quality metrics",
-    ],
-  },
-  {
-    id: "warehouse",
-    name: "Warehouse & Logistics",
-    icon: Package,
-    color: "orange",
-    gradient: "from-orange-500 to-red-500",
-    prompts: [
-      "Track inventory levels with low-stock alerts",
-      "Monitor warehouse temperature and humidity zones",
-      "Display shipping metrics with delivery timelines",
-    ],
-  },
-  {
-    id: "fleet",
-    name: "Fleet Management",
-    icon: Truck,
-    color: "green",
-    gradient: "from-green-500 to-emerald-500",
-    prompts: [
-      "Track vehicle locations with route optimization",
-      "Monitor fuel consumption and maintenance schedules",
-      "Display delivery status with real-time updates",
-    ],
-  },
-  {
-    id: "building",
-    name: "Building Management",
-    icon: Building2,
-    color: "indigo",
-    gradient: "from-indigo-500 to-purple-500",
-    prompts: [
-      "Monitor occupancy levels across all floors",
-      "Track energy usage per zone with cost analysis",
-      "Display security alerts with access control",
-    ],
-  },
-  {
-    id: "retail",
-    name: "Retail & Commerce",
-    icon: ShoppingCart,
-    color: "pink",
-    gradient: "from-pink-500 to-rose-500",
-    prompts: [
-      "Track sales performance across all locations",
-      "Monitor foot traffic with conversion rates",
-      "Display inventory turnover with reorder alerts",
-    ],
-  },
-  {
-    id: "healthcare",
-    name: "Healthcare Facilities",
-    icon: Heart,
-    color: "red",
-    gradient: "from-red-500 to-pink-500",
-    prompts: [
-      "Monitor critical equipment status with alerts",
-      "Track environmental conditions in sterile zones",
-      "Display patient flow with bed occupancy",
-    ],
-  },
-  {
-    id: "office",
-    name: "Office & Workspace",
-    icon: Briefcase,
-    color: "slate",
-    gradient: "from-slate-500 to-gray-500",
-    prompts: [
-      "Monitor workspace utilization with booking trends",
-      "Track energy consumption per department",
-      "Display meeting room availability with schedules",
-    ],
-  },
-  {
     id: "general",
     name: "General IoT",
     icon: Thermometer,
@@ -172,27 +90,50 @@ const DOMAINS = [
 
 const ConfigureDashboard = () => {
   const [selectedDomain, setSelectedDomain] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [userPrompt, setUserPrompt] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [generatedConfig, setGeneratedConfig] = useState(null);
+  const [generatedDashboardId, setGeneratedDashboardId] = useState(null);
   const [error, setError] = useState(null);
   const [layoutId, setLayoutId] = useState(null);
+  const [layoutInfo, setLayoutInfo] = useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate getting layout ID from builder state
-    const builderState = {
-      layoutId: "layout_123",
-      factoryName: "Demo Factory",
-    };
-    setLayoutId(builderState.layoutId);
+    // Get layout and template from previous steps
+    const storedLayoutId = localStorage.getItem("currentLayoutId");
+    const builderState = JSON.parse(
+      localStorage.getItem("dashboardBuilderState") || "{}"
+    );
+
+    if (!storedLayoutId) {
+      toast.error("Layout not found. Please start from factory setup.");
+      navigate("/builder/factory-layout");
+      return;
+    }
+
+    setLayoutId(storedLayoutId);
+    setSelectedTemplate(builderState.template);
+
+    // Load layout details
+    loadLayoutInfo(storedLayoutId);
   }, []);
+
+  const loadLayoutInfo = async (layoutId) => {
+    try {
+      const response = await axios.get(`/dashboard/layout/${layoutId}`);
+      setLayoutInfo(response.data.layout);
+    } catch (error) {
+      console.error("Load layout error:", error);
+      toast.error("Failed to load layout information");
+    }
+  };
 
   const handleDomainSelect = (domain) => {
     setSelectedDomain(domain);
     setUserPrompt("");
-    setGeneratedConfig(null);
+    setGeneratedDashboardId(null);
     setError(null);
   };
 
@@ -202,12 +143,21 @@ const ConfigureDashboard = () => {
 
   const handleSubmit = async () => {
     if (!userPrompt.trim()) {
-      alert("Please describe what you want to see in your dashboard");
+      toast.error("Please describe what you want to see in your dashboard");
       return;
     }
 
     if (!layoutId) {
-      alert("Layout not found. Please start from factory setup.");
+      toast.error("Layout not found. Please start from factory setup.");
+      navigate("/builder/factory-layout");
+      return;
+    }
+
+    if (!selectedTemplate) {
+      toast.error(
+        "Template not selected. Please go back and choose a template."
+      );
+      navigate("/builder/choose-template");
       return;
     }
 
@@ -215,55 +165,36 @@ const ConfigureDashboard = () => {
       setProcessing(true);
       setError(null);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Call AI generation endpoint
+      const response = await axios.post("/dashboard/generate", {
+        prompt: userPrompt,
+        template: selectedTemplate,
+        layoutId: layoutId,
+      });
 
-      // Mock generated dashboard
-      const mockDashboard = {
-        name: "AI Generated Dashboard",
-        description: "Dashboard based on your requirements",
-        widgets: [
-          {
-            title: "Temperature Monitor",
-            type: "line-chart",
-            dataSource: "Motor Sensors",
-          },
-          {
-            title: "Current Status",
-            type: "stat-card",
-            dataSource: "Live Feed",
-          },
-          {
-            title: "Alert Feed",
-            type: "alert-list",
-            dataSource: "Alert System",
-          },
-          {
-            title: "Performance Gauge",
-            type: "gauge",
-            dataSource: "Performance Metrics",
-          },
-        ],
-        refreshInterval: 5000,
-      };
+      setGeneratedDashboardId(response.data.dashboard._id);
+      toast.success("Dashboard generated successfully!");
 
-      setGeneratedConfig(mockDashboard);
+      // Wait a moment for user to see success, then redirect to preview
+      setTimeout(() => {
+        navigate(`/dashboard/preview/${response.data.dashboard._id}`);
+      }, 1500);
     } catch (err) {
       console.error("Generation error:", err);
-      setError("Failed to generate dashboard configuration");
+      setError(
+        err.response?.data?.message ||
+          "Failed to generate dashboard. Please try again."
+      );
+      toast.error("Failed to generate dashboard");
     } finally {
       setProcessing(false);
     }
   };
 
-  const handlePreview = () => {
-    if (!generatedConfig) return;
-    alert("Dashboard preview would open here!");
-  };
-
   const handleRegenerate = () => {
-    setGeneratedConfig(null);
+    setGeneratedDashboardId(null);
     setError(null);
+    setUserPrompt("");
   };
 
   const selectedDomainData = DOMAINS.find((d) => d.id === selectedDomain);
@@ -278,9 +209,12 @@ const ConfigureDashboard = () => {
               <Sparkles className="text-yellow-400 animate-pulse" size={32} />
               AI Dashboard Generator
             </h1>
+            <p className="text-slate-400">
+              Powered by OpenAI GPT-4 • Describe your needs in natural language
+            </p>
           </div>
           <button
-            onClick={() => navigate("/dashboard-builder/choose-template")}
+            onClick={() => navigate("/builder/choose-template")}
             className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-medium transition border border-slate-600"
           >
             <ArrowLeft size={20} />
@@ -288,19 +222,49 @@ const ConfigureDashboard = () => {
           </button>
         </div>
 
-        {/* Progress */}
+        {/* Context Info */}
+        {layoutInfo && (
+          <div className="mt-4 p-4 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700">
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Factory size={16} className="text-blue-400" />
+                <span className="text-slate-400">Layout:</span>
+                <span className="text-white font-medium">
+                  {layoutInfo.name}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-slate-600"></div>
+              <div className="flex items-center gap-2">
+                <Activity size={16} className="text-green-400" />
+                <span className="text-slate-400">Items:</span>
+                <span className="text-white font-medium">
+                  {layoutInfo.items?.length || 0}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-slate-600"></div>
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-purple-400" />
+                <span className="text-slate-400">Template:</span>
+                <span className="text-white font-medium capitalize">
+                  {selectedTemplate?.replace("-", " ")}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto">
         {/* Domain Selection */}
-        {!selectedDomain && !generatedConfig && (
+        {!selectedDomain && !generatedDashboardId && (
           <div className="space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">
                 Choose Your Domain
               </h2>
               <p className="text-slate-400">
-                Select the domain that best matches your use case
+                Select the domain that best matches your use case to get
+                AI-optimized suggestions
               </p>
             </div>
 
@@ -335,7 +299,7 @@ const ConfigureDashboard = () => {
         )}
 
         {/* AI Input Section */}
-        {selectedDomain && !generatedConfig && (
+        {selectedDomain && !generatedDashboardId && (
           <div className="space-y-6">
             {/* Selected Domain Header */}
             <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 border border-slate-600">
@@ -356,7 +320,8 @@ const ConfigureDashboard = () => {
                       {selectedDomainData.name}
                     </h2>
                     <p className="text-slate-300">
-                      AI-powered dashboard generation
+                      AI will analyze your layout and generate an optimized
+                      dashboard
                     </p>
                   </div>
                 </div>
@@ -377,13 +342,14 @@ const ConfigureDashboard = () => {
               </label>
               <p className="text-slate-400 mb-4">
                 Tell AI what you want to see. Be specific about metrics, time
-                ranges, alerts, and visualizations.
+                ranges, alerts, and visualizations. AI will automatically map
+                your requirements to available data sources from your layout.
               </p>
 
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="Example: Show me temperature trends for all motors in the last 24 hours with alerts when temperature exceeds 80 degrees. Include gauges for current values and a line chart for historical data..."
+                placeholder="Example: Show me temperature trends for all motors in the last 24 hours with alerts when temperature exceeds 80 degrees. Include gauges for current values and a line chart for historical data. Also add humidity monitoring and alert me if it drops below 40%..."
                 rows={6}
                 disabled={processing}
                 className="w-full bg-slate-900 text-white px-4 py-3 rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500 disabled:opacity-50 transition"
@@ -392,16 +358,21 @@ const ConfigureDashboard = () => {
               <div className="flex items-center justify-between mt-4">
                 <span className="text-slate-500 text-sm">
                   {userPrompt.length} characters
+                  {userPrompt.length > 0 && userPrompt.length < 50 && (
+                    <span className="text-yellow-400 ml-2">
+                      • Add more details for better results
+                    </span>
+                  )}
                 </span>
                 <button
                   onClick={handleSubmit}
-                  disabled={!userPrompt.trim() || processing}
+                  disabled={!userPrompt.trim() || processing || !layoutId}
                   className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-medium transition shadow-lg hover:shadow-xl disabled:shadow-none"
                 >
                   {processing ? (
                     <>
                       <Loader2 className="animate-spin" size={20} />
-                      Generating Magic...
+                      Generating with AI...
                     </>
                   ) : (
                     <>
@@ -428,9 +399,14 @@ const ConfigureDashboard = () => {
                     disabled={processing}
                     className="w-full text-left p-4 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 hover:border-blue-500 rounded-xl transition group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <p className="text-slate-300 group-hover:text-white">
-                      {prompt}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm font-medium flex-shrink-0 mt-0.5">
+                        {idx + 1}
+                      </div>
+                      <p className="text-slate-300 group-hover:text-white flex-1">
+                        {prompt}
+                      </p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -442,26 +418,29 @@ const ConfigureDashboard = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <Loader2 className="text-blue-400 animate-spin" size={28} />
                   <h3 className="text-blue-400 font-bold text-lg">
-                    AI is working its magic...
+                    AI is analyzing your requirements...
                   </h3>
                 </div>
                 <div className="space-y-2 text-sm text-slate-300">
                   <p className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-green-400" />
-                    Analyzing your requirements
+                    Understanding your prompt
                   </p>
                   <p className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-green-400" />
-                    Identifying data sources from layout
+                    Analyzing factory layout and data sources
                   </p>
                   <p className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-green-400" />
-                    Selecting appropriate widgets
+                    Mapping requirements to available sensors
                   </p>
                   <p className="flex items-center gap-2 animate-pulse">
                     <Loader2 size={16} className="text-blue-400 animate-spin" />
-                    Generating dashboard layout...
+                    Generating optimal dashboard configuration...
                   </p>
+                </div>
+                <div className="mt-4 text-xs text-slate-500">
+                  This may take 10-30 seconds depending on complexity
                 </div>
               </div>
             )}
@@ -473,128 +452,20 @@ const ConfigureDashboard = () => {
                   className="text-red-400 flex-shrink-0 mt-0.5"
                   size={20}
                 />
-                <div>
+                <div className="flex-1">
                   <h4 className="text-red-400 font-medium mb-1">
                     Generation Failed
                   </h4>
-                  <p className="text-red-300 text-sm">{error}</p>
+                  <p className="text-red-300 text-sm mb-3">{error}</p>
+                  <button
+                    onClick={handleRegenerate}
+                    className="text-sm text-red-400 hover:text-red-300 underline"
+                  >
+                    Try again
+                  </button>
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Generated Config Display */}
-        {generatedConfig && !processing && (
-          <div className="space-y-6">
-            {/* Success Message */}
-            <div className="p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <CheckCircle className="text-green-400" size={28} />
-                <h3 className="text-green-400 font-bold text-xl">
-                  Dashboard Generated Successfully!
-                </h3>
-              </div>
-              <p className="text-slate-300">
-                Your dashboard is ready. Review the configuration below and
-                preview it.
-              </p>
-            </div>
-
-            {/* Dashboard Config */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-              <h3 className="text-white font-semibold mb-4 text-lg">
-                Dashboard Configuration
-              </h3>
-
-              <div className="space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="text-slate-400 text-sm">
-                    Dashboard Name
-                  </label>
-                  <p className="text-white font-medium text-lg">
-                    {generatedConfig.name}
-                  </p>
-                </div>
-
-                {/* Description */}
-                {generatedConfig.description && (
-                  <div>
-                    <label className="text-slate-400 text-sm">
-                      Description
-                    </label>
-                    <p className="text-slate-300">
-                      {generatedConfig.description}
-                    </p>
-                  </div>
-                )}
-
-                {/* Widgets */}
-                <div>
-                  <label className="text-slate-400 text-sm mb-3 block">
-                    Widgets ({generatedConfig.widgets?.length || 0})
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {generatedConfig.widgets?.map((widget, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-slate-500 transition"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">
-                            {widget.title}
-                          </span>
-                          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
-                            {widget.type}
-                          </span>
-                        </div>
-                        {widget.dataSource && (
-                          <p className="text-slate-400 text-xs">
-                            Source: {widget.dataSource}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Refresh Rate */}
-                {generatedConfig.refreshInterval && (
-                  <div>
-                    <label className="text-slate-400 text-sm">
-                      Refresh Interval
-                    </label>
-                    <p className="text-white font-medium">
-                      {generatedConfig.refreshInterval / 1000} seconds
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* User Prompt */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-              <h4 className="text-slate-400 text-sm mb-2">Your Request</h4>
-              <p className="text-slate-300">{userPrompt}</p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRegenerate}
-                className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition border border-slate-600"
-              >
-                Regenerate
-              </button>
-              <button
-                onClick={handlePreview}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition shadow-lg hover:shadow-xl"
-              >
-                <Eye size={20} />
-                Preview Dashboard
-              </button>
-            </div>
           </div>
         )}
       </div>
