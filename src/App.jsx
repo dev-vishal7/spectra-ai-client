@@ -17,6 +17,7 @@ import ChooseTemplate from "./pages/ChooseTemplate";
 import LandingPage from "./pages/landing-page";
 import DashboardPreview from "./pages/DashboardPreview";
 import FactoryLayout from "./pages/FactorySetup";
+import WorkflowEditor from "./pages/WorkflowEditor";
 
 function App() {
   const [user, setUser] = useState(null);

@@ -23,6 +23,7 @@ import {
   CheckCircle,
   GripVertical,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import {
@@ -41,6 +42,8 @@ import "react-resizable/css/styles.css";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import WorkflowEditor from "../WorkflowEditor";
+import { getCookie } from "../../utils/cookie";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -422,6 +425,31 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
   //   return () => clearInterval(interval);
   // }, [dashboard, isEditMode]);
 
+  useEffect(() => {
+    if (isEditMode) return;
+    const { Authorization } = getCookie(["Authorization"]);
+    const eventSource = new EventSource(
+      `http://localhost:5008/api/dashboard/${
+        dashboard._id
+      }/stream?token=${Authorization.replace("Bearer ", "")}`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("data event", data);
+      setLiveData(data || {});
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("Stream error:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [dashboard._id, isEditMode]);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -433,7 +461,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
         setWidgets(widgetList);
 
         const gridLayouts = widgetList.map((w) => ({
-          i: w.id,
+          i: w._id,
           x: w.position?.x || 0,
           y: w.position?.y || 0,
           w: w.position?.w || 6,
@@ -467,7 +495,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
     setLayouts({ lg: layout });
 
     const updatedWidgets = widgets.map((widget) => {
-      const layoutItem = layout.find((l) => l.i === widget.id);
+      const layoutItem = layout.find((l) => l.i === widget._id);
       if (layoutItem) {
         return {
           ...widget,
@@ -501,12 +529,37 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
       toast.error("Failed to save layout");
     }
   };
+  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState(null);
+
+  const handleCloseWorkflow = () => {
+    setWorkflowEditorOpen(false);
+    setSelectedWidget(null);
+  };
+  const handleOpenWorkflow = (widget) => {
+    setSelectedWidget(widget);
+    setWorkflowEditorOpen(true);
+  };
+
+  console.log("selectedWidget", selectedWidget);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <Loader2 className="animate-spin text-blue-400" size={48} />
       </div>
+    );
+  }
+
+  if (workflowEditorOpen && selectedWidget) {
+    return (
+      <WorkflowEditor
+        widgetId={selectedWidget._id}
+        dashboardId={dashboard._id}
+        workflowId={selectedWidget.workflowId}
+        onClose={handleCloseWorkflow}
+        onSave={handleCloseWorkflow}
+      />
     );
   }
 
@@ -546,7 +599,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
                     onClick={handleSaveLayout}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-2"
                   >
-                    <Download size={18} /> Save Layout
+                    <Download size={18} /> Save
                   </button>
                 </>
               ) : (
@@ -555,7 +608,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
                     onClick={() => setIsEditMode(true)}
                     className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition flex items-center gap-2"
                   >
-                    <Edit size={18} /> Edit Layout
+                    <Edit size={18} /> Edit
                   </button>
                   <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition flex items-center gap-2">
                     <Share2 size={18} /> Share
@@ -585,13 +638,14 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
         >
           {widgets.map((widget) => (
             <div
-              key={widget.id}
+              key={widget._id}
               className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden"
             >
               <DashboardWidget
                 widget={widget}
-                data={liveData?.liveData?.[widget.id]}
+                data={liveData?.liveData?.[widget._id]}
                 isEditMode={isEditMode}
+                onOpenWorkflow={handleOpenWorkflow}
               />
             </div>
           ))}
@@ -602,9 +656,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
 };
 
 // ============ DASHBOARD WIDGET RENDERER ============
-const DashboardWidget = ({ widget, data, isEditMode }) => {
-  console.log("widget", widget);
-  console.log("data", data);
+const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
   if (!data) {
     return (
       <div className="h-full flex flex-col">
@@ -661,14 +713,30 @@ const DashboardWidget = ({ widget, data, isEditMode }) => {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center justify-between  gap-2"
+          style={{ width: "100%" }}
+        >
+          <div className="flex items-center">
+            {isEditMode && (
+              <GripVertical
+                size={16}
+                className="text-slate-400 cursor-move drag-handle"
+              />
+            )}
+            <span className="text-white text-sm font-medium">
+              {widget.title}
+            </span>
+          </div>
           {isEditMode && (
-            <GripVertical
-              size={16}
-              className="text-slate-400 cursor-move drag-handle"
-            />
+            <button
+              onClick={() => onOpenWorkflow(widget)}
+              className="cursor-pointer group-hover:opacity-100 transition-opacity p-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg"
+              title="Edit Workflow"
+            >
+              <Settings size={16} className="text-white" />
+            </button>
           )}
-          <span className="text-white text-sm font-medium">{widget.title}</span>
         </div>
       </div>
       <div className="p-4 flex-1 overflow-auto">{renderWidget()}</div>
@@ -678,14 +746,38 @@ const DashboardWidget = ({ widget, data, isEditMode }) => {
 
 // ============ WIDGET COMPONENTS ============
 const LineChartWidget = ({ widget, data }) => {
-  if (!data.history || data.history.length === 0) {
+  if (!data || (!data.history && !data.series)) {
     return <EmptyWidget message="No data available" />;
   }
 
-  const chartData = data.history.map((item) => ({
-    time: new Date(item.timestamp).toLocaleTimeString(),
-    value: item.value,
-  }));
+  let chartData = [];
+  let seriesKeys = [];
+
+  if (data.type === "timeSeries") {
+    chartData = data.history.map((item) => ({
+      time: new Date(item.timestamp).toLocaleTimeString(),
+      value: item.value,
+    }));
+    seriesKeys = ["value"];
+  } else if (data.type === "multiSeries") {
+    // Collect all timestamps
+    const timestamps = new Set();
+    Object.values(data.series).forEach((arr) =>
+      arr.forEach((item) => timestamps.add(item.timestamp))
+    );
+    const sortedTimestamps = Array.from(timestamps).sort();
+
+    // Build chartData array with all series
+    chartData = sortedTimestamps.map((ts) => {
+      const point = { time: new Date(ts).toLocaleTimeString() };
+      Object.entries(data.series).forEach(([key, arr]) => {
+        const item = arr.find((i) => i.timestamp === ts);
+        point[key] = item ? item.value : null; // fill null if missing
+      });
+      return point;
+    });
+    seriesKeys = Object.keys(data.series);
+  }
 
   return (
     <div className="h-full">
@@ -701,19 +793,21 @@ const LineChartWidget = ({ widget, data }) => {
               borderRadius: "8px",
             }}
           />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={false}
-          />
+          {seriesKeys.map((key, idx) => (
+            <Line
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke={["#3b82f6", "#f97316", "#22c55e", "#e11d48"][idx % 4]} // different colors
+              strokeWidth={2}
+              dot={false}
+            />
+          ))}
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
 };
-
 const GaugeWidget = ({ widget, data }) => {
   const value = data.current || 0;
   const min = widget.settings?.min || 0;
