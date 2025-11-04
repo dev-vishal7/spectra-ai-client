@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import toast from "react-hot-toast";
 import SourceFormDrawer from "../components/SourceFormDrawer";
 import axios from "axios";
@@ -32,24 +32,45 @@ const SourcesPage = () => {
     setDrawerOpen(true);
   };
 
-  const handleSaveSource = async (sourceData) => {
+  const handleSaveSource = async (sourceData, file = null) => {
     try {
       const toastId = toast.loading(
         sourceData._id ? "Updating source..." : "Creating source..."
       );
 
       if (sourceData._id) {
+        // Update existing source (no file upload on update)
         await axios.patch(`/sources/update/${sourceData._id}`, sourceData);
         toast.success("Source updated successfully!", { id: toastId });
       } else {
-        await axios.post("/sources/create", sourceData);
-        toast.success("Source created successfully!", { id: toastId });
+        // Create new source
+        if (sourceData.protocol === "Excel Upload") {
+          // Use FormData for file upload
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("name", sourceData.name);
+          formData.append("location", sourceData.config.location || "");
+          formData.append("equipment", sourceData.config.equipment || "");
+          formData.append("description", sourceData.config.description || "");
+          formData.append("tags", JSON.stringify(sourceData.config.tags || []));
+
+          await axios.post("/sources/upload-excel", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          toast.success("Excel file uploaded and processed!", { id: toastId });
+        } else {
+          // Regular source creation
+          await axios.post("/sources/create", sourceData);
+          toast.success("Source created successfully!", { id: toastId });
+        }
       }
 
       await fetchSources();
       setDrawerOpen(false);
     } catch (err) {
-      toast.error("Failed to save source.");
+      toast.error(err.response?.data?.message || "Failed to save source.");
       console.error(err);
     }
   };
@@ -68,8 +89,34 @@ const SourcesPage = () => {
     }
   };
 
+  const getProtocolIcon = (protocol) => {
+    if (protocol === "Excel Upload") {
+      return <FileSpreadsheet size={20} className="text-green-400" />;
+    }
+    return null;
+  };
+
+  const getProtocolBadge = (protocol) => {
+    const colors = {
+      MQTT: "bg-blue-500/20 text-blue-400",
+      "Modbus TCP": "bg-purple-500/20 text-purple-400",
+      RS485: "bg-orange-500/20 text-orange-400",
+      "Excel Upload": "bg-green-500/20 text-green-400",
+    };
+
+    return (
+      <span
+        className={`px-2 py-1 rounded text-xs font-medium ${
+          colors[protocol] || "bg-gray-500/20 text-gray-400"
+        }`}
+      >
+        {protocol}
+      </span>
+    );
+  };
+
   return (
-    <div className="bg-[#0F172A] text-white p-6 ">
+    <div className="bg-[#0F172A] text-white p-6 min-h-screen">
       <SourceFormDrawer
         isOpen={isDrawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -90,6 +137,16 @@ const SourcesPage = () => {
 
       {loading ? (
         <p className="text-zinc-400">Loading sources...</p>
+      ) : sources.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-zinc-400 mb-4">No sources configured yet</p>
+          <button
+            onClick={() => handleOpenDrawer()}
+            className="text-blue-400 hover:text-blue-300 underline"
+          >
+            Create your first source
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {sources.map((source) => (
@@ -97,12 +154,10 @@ const SourcesPage = () => {
               key={source._id}
               className="bg-[#1E293B] rounded-lg p-4 shadow-md hover:shadow-lg transition-all border border-zinc-800"
             >
-              <div className="flex justify-between items-start">
-                <div>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2">
+                  {getProtocolIcon(source.protocol)}
                   <h2 className="text-lg font-semibold">{source.name}</h2>
-                  <p className="text-sm text-zinc-400 mt-1">
-                    {source.protocol}
-                  </p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -119,6 +174,86 @@ const SourcesPage = () => {
                   >
                     <Trash2 size={18} />
                   </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {getProtocolBadge(source.protocol)}
+
+                {source.protocol === "Excel Upload" && source.fileInfo && (
+                  <div className="mt-2 text-xs text-zinc-400">
+                    <p>📄 {source.fileInfo.originalName}</p>
+                    <p>
+                      📊 {source.fileInfo.rowCount} rows ×{" "}
+                      {source.fileInfo.columnCount} cols
+                    </p>
+                    <p className="text-zinc-500">
+                      Uploaded:{" "}
+                      {new Date(
+                        source.fileInfo.uploadedAt
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+
+                {source.config?.location && (
+                  <p className="text-sm text-zinc-400">
+                    📍 {source.config.location}
+                  </p>
+                )}
+
+                {source.config?.equipment && (
+                  <p className="text-sm text-zinc-400">
+                    🔧 {source.config.equipment}
+                  </p>
+                )}
+
+                {source.config?.tags && source.config.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {source.config.tags.slice(0, 3).map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs px-2 py-0.5 bg-zinc-700 rounded-full text-zinc-300"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {source.config.tags.length > 3 && (
+                      <span className="text-xs text-zinc-500">
+                        +{source.config.tags.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-zinc-700">
+                <div className="flex items-center justify-between text-xs">
+                  <span
+                    className={`flex items-center gap-1 ${
+                      source.connectionStatus?.connected
+                        ? "text-green-400"
+                        : source.status === "idle"
+                        ? "text-yellow-400"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        source.connectionStatus?.connected
+                          ? "bg-green-400"
+                          : source.status === "idle"
+                          ? "bg-yellow-400"
+                          : "bg-zinc-500"
+                      }`}
+                    ></span>
+                    {source.connectionStatus?.connected
+                      ? "Connected"
+                      : source.status === "idle"
+                      ? "Ready"
+                      : "Disconnected"}
+                  </span>
+                  <span className="text-zinc-500">{source.status}</span>
                 </div>
               </div>
             </div>

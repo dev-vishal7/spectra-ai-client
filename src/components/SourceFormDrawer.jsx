@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { X, Plus, Trash2, Tag } from "lucide-react";
+import { X, Plus, Trash2, Tag, Upload, File } from "lucide-react";
 
-const SOURCE_TYPES = ["MQTT", "Modbus TCP", "RS485"];
+const SOURCE_TYPES = ["MQTT", "Modbus TCP", "RS485", "Excel Upload"];
 
 const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
   const [source, setSource] = useState({
@@ -13,25 +13,34 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
   const [topics, setTopics] = useState([""]);
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
 
   useEffect(() => {
     if (initialData) {
       setSource(initialData);
-      // Handle topics
+
       if (initialData.config.topic) {
         const topicArray = Array.isArray(initialData.config.topic)
           ? initialData.config.topic
           : [initialData.config.topic];
         setTopics(topicArray);
       }
-      // Handle tags
+
       if (initialData.config.tags) {
         setTags(initialData.config.tags);
+      }
+
+      // Show file info for Excel sources
+      if (initialData.protocol === "Excel Upload" && initialData.fileInfo) {
+        setFilePreview(initialData.fileInfo);
       }
     } else {
       setSource({ name: "", protocol: "MQTT", config: {} });
       setTopics([""]);
       setTags([]);
+      setSelectedFile(null);
+      setFilePreview(null);
     }
   }, [initialData, isOpen]);
 
@@ -40,6 +49,12 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
       ...prev,
       [field]: value,
     }));
+
+    // Reset file when changing protocol
+    if (field === "protocol") {
+      setSelectedFile(null);
+      setFilePreview(null);
+    }
   };
 
   const handleConfigChange = (key, value) => {
@@ -50,6 +65,17 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
         [key]: value,
       },
     }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setFilePreview({
+        originalName: file.name,
+        fileSize: file.size,
+      });
+    }
   };
 
   const addTopic = () => {
@@ -81,6 +107,76 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
 
   const renderProtocolFields = () => {
     switch (source.protocol) {
+      case "Excel Upload":
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Upload Excel File <span className="text-red-400">*</span>
+              </label>
+
+              {!filePreview ? (
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-800 hover:bg-gray-700 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-400">
+                      <span className="font-semibold">Click to upload</span> or
+                      drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Excel files (.xlsx, .xls) or CSV (MAX. 10MB)
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileChange}
+                    disabled={!!initialData}
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center gap-3 p-4 bg-gray-800 rounded-lg border border-gray-600">
+                  <File className="w-8 h-8 text-blue-400" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">
+                      {filePreview.originalName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {(filePreview.fileSize / 1024).toFixed(2)} KB
+                    </p>
+                    {filePreview.rowCount && (
+                      <p className="text-xs text-blue-400 mt-1">
+                        {filePreview.rowCount} rows × {filePreview.columnCount}{" "}
+                        columns
+                      </p>
+                    )}
+                  </div>
+                  {!initialData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setFilePreview(null);
+                      }}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <X size={20} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {initialData && (
+                <p className="mt-2 text-xs text-yellow-400">
+                  ℹ️ File cannot be changed after creation. Create a new source
+                  to upload a different file.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+
       case "MQTT":
         return (
           <>
@@ -314,8 +410,12 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
       return;
     }
 
-    // For MQTT, save topics array
-    if (source.protocol === "MQTT") {
+    if (source.protocol === "Excel Upload") {
+      if (!selectedFile && !initialData) {
+        alert("Please upload an Excel file");
+        return;
+      }
+    } else if (source.protocol === "MQTT") {
       const validTopics = topics.filter((t) => t.trim() !== "");
       if (validTopics.length === 0) {
         alert("Please add at least one topic");
@@ -324,12 +424,11 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
       source.config.topic = validTopics;
     }
 
-    // Save tags for AI
     if (tags.length > 0) {
       source.config.tags = tags;
     }
 
-    onSave(source);
+    onSave(source, selectedFile);
     onClose();
   };
 
@@ -337,20 +436,17 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
 
   return (
     <>
-      {/* Background overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
         onClick={onClose}
       ></div>
 
-      {/* Drawer Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full sm:w-[550px] bg-[#1E293B] text-white shadow-2xl z-50 transform transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="p-6 h-full flex flex-col">
-          {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">
               {initialData ? "Edit" : "Create"} Source
@@ -363,7 +459,6 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
             </button>
           </div>
 
-          {/* Form Fields */}
           <div className="flex-1 overflow-y-auto pr-2 space-y-4">
             <Input
               label="Source Name"
@@ -384,7 +479,8 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
                   setSource((prev) => ({ ...prev, config: {} }));
                   setTopics([""]);
                 }}
-                className="w-full bg-gray-800 border border-gray-600 px-3 py-3 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                disabled={!!initialData}
+                className="w-full bg-gray-800 border border-gray-600 px-3 py-3 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {SOURCE_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -392,6 +488,11 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
                   </option>
                 ))}
               </select>
+              {initialData && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Protocol cannot be changed after creation
+                </p>
+              )}
             </div>
 
             <div className="border-t border-gray-700 pt-4 mt-4">
@@ -401,7 +502,6 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
               {renderProtocolFields()}
             </div>
 
-            {/* AI Metadata Section */}
             <div className="border-t border-gray-700 pt-4 mt-4">
               <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
                 <Tag size={16} />
@@ -442,7 +542,6 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
                 />
               </div>
 
-              {/* Tags */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">
                   Tags
@@ -489,7 +588,6 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
             </div>
           </div>
 
-          {/* Footer Buttons */}
           <div className="mt-6 pt-4 border-t border-gray-700 flex justify-end gap-3">
             <button
               onClick={onClose}
