@@ -219,7 +219,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() =>
-                  (window.location.href = "/builder/factory-layout")
+                  (window.location.href = "/ai/builder/factory-layout")
                 }
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
               >

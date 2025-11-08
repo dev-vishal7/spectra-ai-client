@@ -17,6 +17,8 @@ import {
   Eye,
   Zap,
   XCircleIcon,
+  BarChart2,
+  Link,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -44,6 +46,7 @@ const NODE_ICONS = {
   alert: Bell,
   output: Eye,
   transform: Zap,
+  join: Link, // NEW
 };
 
 const NODE_COLORS = {
@@ -86,6 +89,12 @@ const NODE_COLORS = {
     bg: "bg-pink-500/20",
     border: "border-pink-500",
     text: "text-pink-400",
+  },
+  join: {
+    // NEW
+    bg: "bg-indigo-500/20",
+    border: "border-indigo-500",
+    text: "text-indigo-400",
   },
 };
 
@@ -139,7 +148,6 @@ const CustomNode = ({ data }) => {
 
   return (
     <div className="relative">
-      {/* === Target handle (incoming edge) === */}
       <Handle
         type="target"
         position={Position.Top}
@@ -152,7 +160,6 @@ const CustomNode = ({ data }) => {
         }}
       />
 
-      {/* === Node Card === */}
       <div
         onClick={data.onClick}
         className={`${colors.bg} ${colors.border} border-2 rounded-xl p-4 min-w-[220px] cursor-pointer hover:shadow-xl transition-all backdrop-blur-sm`}
@@ -175,7 +182,6 @@ const CustomNode = ({ data }) => {
           )}
         </div>
 
-        {/* === Config Preview === */}
         {data.config && (
           <div className="text-xs text-slate-300 mt-2 space-y-1 bg-slate-900/50 p-2 rounded">
             {data.type === "formula" && data.config.formula && (
@@ -187,11 +193,13 @@ const CustomNode = ({ data }) => {
             {data.type === "condition" && data.config.threshold && (
               <div>Threshold: {data.config.threshold}</div>
             )}
+            {data.type === "join" && data.config.joinType && (
+              <div>Join: {data.config.joinType}</div>
+            )}
           </div>
         )}
       </div>
 
-      {/* === Source handle (outgoing edge) === */}
       {data.type !== "output" && (
         <Handle
           type="source"
@@ -210,6 +218,68 @@ const CustomNode = ({ data }) => {
 };
 
 const nodeTypes = { custom: CustomNode };
+
+const getAvailableFieldsAtNode = (workflow, currentNodeId) => {
+  if (!workflow || !workflow.nodes) return [];
+
+  const fields = new Set();
+  const currentNodeIndex = workflow.nodes.findIndex(
+    (n) => n.nodeId === currentNodeId
+  );
+
+  // Process all nodes before current node
+  for (let i = 0; i <= currentNodeIndex; i++) {
+    const node = workflow.nodes[i];
+
+    switch (node.type) {
+      case "data-source":
+        // Add all fields from data source
+        if (node.config?.fields) {
+          node.config.fields.forEach((f) => fields.add(f));
+        }
+        break;
+
+      case "formula":
+        // Add formula output
+        if (node.config?.outputName) {
+          fields.add(node.config.outputName);
+        }
+        break;
+
+      case "aggregation":
+        // Add aggregation result
+        fields.add("value");
+        break;
+
+      case "transform":
+        // Handle different transform types
+        if (node.config?.transformType === "select") {
+          // Only keep selected fields
+          const selectFields = new Set(node.config.fields || []);
+          fields.forEach((f) => {
+            if (!selectFields.has(f)) fields.delete(f);
+          });
+        } else if (node.config?.transformType === "rename") {
+          // Rename fields
+          const mapping = node.config.mapping || {};
+          const newFields = new Set();
+          fields.forEach((f) => {
+            newFields.add(mapping[f] || f);
+          });
+          fields.clear();
+          newFields.forEach((f) => fields.add(f));
+        }
+        break;
+
+      case "join":
+        // Join adds fields from both sources
+        // This is handled separately in JoinConfig
+        break;
+    }
+  }
+
+  return Array.from(fields);
+};
 
 // Main Workflow Editor
 const WorkflowEditor = ({
@@ -241,10 +311,6 @@ const WorkflowEditor = ({
       const workflowData = response.data.workflow;
       setWorkflow(workflowData);
 
-      console.log("Loaded workflow:", workflowData);
-
-      // Create nodes with proper data
-      console.log("workflowData.nodes", workflowData.nodes);
       const flowNodes = workflowData.nodes.map((node) => ({
         id: node.nodeId,
         type: "custom",
@@ -257,7 +323,7 @@ const WorkflowEditor = ({
           },
         },
       }));
-      // Create edges with proper source and target
+
       const flowEdges = workflowData.edges.map((edge) => ({
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
@@ -386,14 +452,12 @@ const WorkflowEditor = ({
   const onConnect = useCallback(
     async (params) => {
       try {
-        // Add edge to backend
         await axios.post(`/dashboard/workflow/${workflow._id}/connect`, {
           from: params.source,
           to: params.target,
           label: "data",
         });
 
-        // Update local state
         setEdges((eds) =>
           addEdge(
             {
@@ -413,7 +477,7 @@ const WorkflowEditor = ({
         );
 
         toast.success("Connection added");
-        await loadWorkflow(); // Reload to sync
+        await loadWorkflow();
       } catch (error) {
         console.error("Connect error:", error);
         toast.error("Failed to add connection");
@@ -451,7 +515,6 @@ const WorkflowEditor = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50">
-      {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -493,7 +556,6 @@ const WorkflowEditor = ({
         </div>
       </div>
 
-      {/* Workflow Canvas */}
       <div className="flex h-[calc(100vh-80px)]">
         <div className="flex-1 relative">
           <ReactFlow
@@ -504,7 +566,6 @@ const WorkflowEditor = ({
             onConnect={onConnect}
             onEdgesDelete={onEdgesDelete}
             nodeTypes={nodeTypes}
-            // fitView
             snapToGrid
             snapGrid={[15, 15]}
           >
@@ -512,7 +573,6 @@ const WorkflowEditor = ({
             <Controls />
           </ReactFlow>
 
-          {/* Execution Result */}
           {executionResult && (
             <div className="absolute bottom-4 right-4 bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md z-10">
               <div className="flex items-center justify-between mb-4">
@@ -534,7 +594,6 @@ const WorkflowEditor = ({
           )}
         </div>
 
-        {/* Node Configuration Panel */}
         {isConfigOpen && selectedNode && (
           <NodeConfigPanel
             node={selectedNode}
@@ -547,7 +606,6 @@ const WorkflowEditor = ({
         )}
       </div>
 
-      {/* Add Node Modal */}
       {isAddNodeOpen && (
         <AddNodeModal
           onAdd={handleAddNode}
@@ -584,23 +642,38 @@ const NodeConfigPanel = ({
           />
         );
       case "formula":
-        return <FormulaConfig config={config} onChange={setConfig} />;
+        return (
+          <FormulaConfig
+            config={config}
+            onChange={setConfig}
+            workflow={workflow}
+          />
+        );
       case "condition":
         return (
           <ConditionConfig
             config={config}
             onChange={setConfig}
             workflow={workflow}
+            node={node}
           />
         );
       case "aggregation":
-        return <AggregationConfig config={config} onChange={setConfig} />;
+        return (
+          <AggregationConfig
+            config={config}
+            onChange={setConfig}
+            workflow={workflow}
+            node={node}
+          />
+        );
       case "filter":
         return (
           <FilterConfig
             config={config}
             onChange={setConfig}
             workflow={workflow}
+            node={node}
           />
         );
       case "transform":
@@ -609,16 +682,28 @@ const NodeConfigPanel = ({
             config={config}
             onChange={setConfig}
             workflow={workflow}
+            node={node}
           />
         );
       case "alert":
         return <AlertConfig config={config} onChange={setConfig} />;
+      case "join":
+        // NEW JOIN CONFIG
+        return (
+          <JoinConfig
+            config={config}
+            onChange={setConfig}
+            workflow={workflow}
+            node={node}
+          />
+        );
       case "output":
         return (
           <OutputConfig
             config={config}
             onChange={setConfig}
             workflow={workflow}
+            node={node}
           />
         );
       default:
@@ -675,7 +760,6 @@ const NodeConfigPanel = ({
   );
 };
 
-// Configuration Components
 const DataSourceConfig = ({ config, sources, onChange }) => {
   const [selectedSource, setSelectedSource] = useState(config.sourceId || "");
   const [selectedFields, setSelectedFields] = useState(config.fields || []);
@@ -688,7 +772,6 @@ const DataSourceConfig = ({ config, sources, onChange }) => {
   }, [selectedSource]);
 
   useEffect(() => {
-    // Pre-fill if already configured
     if (config.sourceId && config.fields && config.fields.length > 0) {
       setSelectedSource(config.sourceId);
       setSelectedFields(config.fields);
@@ -703,7 +786,6 @@ const DataSourceConfig = ({ config, sources, onChange }) => {
         const fields = Object.keys(data.data.parsed.value);
         setAvailableFields(fields);
 
-        // Auto-select all fields if none selected
         if (selectedFields.length === 0) {
           setSelectedFields(fields);
           onChange({ ...config, sourceId: selectedSource, fields: fields });
@@ -724,7 +806,7 @@ const DataSourceConfig = ({ config, sources, onChange }) => {
     <div className="space-y-4">
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Data Source
+          Data Source <span className="text-red-400">*</span>
         </label>
         <select
           value={selectedSource}
@@ -743,9 +825,9 @@ const DataSourceConfig = ({ config, sources, onChange }) => {
       {availableFields.length > 0 && (
         <div>
           <label className="block text-slate-300 text-sm font-medium mb-2">
-            Select Fields
+            Select Fields <span className="text-red-400">*</span>
           </label>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto bg-slate-900 p-3 rounded-lg">
             {availableFields.map((field) => (
               <label
                 key={field}
@@ -778,23 +860,189 @@ const DataSourceConfig = ({ config, sources, onChange }) => {
   );
 };
 
-const FormulaConfig = ({ config, onChange }) => {
+const FormulaConfig = ({ config, onChange, workflow }) => {
+  const [parameters, setParameters] = useState(config.parameters || []);
+  const [formula, setFormula] = useState(config.formula || "");
+  const [availableNodes, setAvailableNodes] = useState([]);
+
+  useEffect(() => {
+    if (workflow) {
+      const dataNodes = workflow.nodes.filter(
+        (n) =>
+          n.type === "data-source" ||
+          n.type === "aggregation" ||
+          n.type === "formula"
+      );
+      setAvailableNodes(dataNodes);
+    }
+  }, [workflow]);
+
+  useEffect(() => {
+    if (config.parameters) setParameters(config.parameters);
+    if (config.formula) setFormula(config.formula);
+  }, [config]);
+
+  const addParameter = () => {
+    setParameters([
+      ...parameters,
+      { name: "", sourceNode: "", field: "", defaultValue: 0 },
+    ]);
+  };
+
+  const updateParameter = (index, field, value) => {
+    const newParams = [...parameters];
+    newParams[index][field] = value;
+    setParameters(newParams);
+    onChange({ ...config, parameters: newParams, formula });
+  };
+
+  const removeParameter = (index) => {
+    const newParams = parameters.filter((_, i) => i !== index);
+    setParameters(newParams);
+    onChange({ ...config, parameters: newParams, formula });
+  };
+
+  const getFieldsForNode = (nodeId) => {
+    const node = workflow?.nodes.find((n) => n.nodeId === nodeId);
+    if (!node) return [];
+
+    if (node.type === "data-source") {
+      return node.config?.fields || [];
+    } else if (node.type === "aggregation") {
+      return ["value"];
+    } else if (node.type === "formula") {
+      return [node.config?.outputName || "result"];
+    }
+    return [];
+  };
+
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Formula
+          Formula Expression <span className="text-red-400">*</span>
         </label>
         <textarea
-          value={config.formula || ""}
-          onChange={(e) => onChange({ ...config, formula: e.target.value })}
-          placeholder="(Availability * Performance * Quality) / 10000"
+          value={formula}
+          onChange={(e) => {
+            setFormula(e.target.value);
+            onChange({ ...config, formula: e.target.value, parameters });
+          }}
+          placeholder="Example: (param1 * param2) / 100"
           className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
           rows={3}
         />
       </div>
 
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-slate-300 text-sm font-medium">
+            Parameters
+          </label>
+          <button
+            onClick={addParameter}
+            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+          >
+            <Plus size={14} /> Add Parameter
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {parameters.map((param, index) => (
+            <div
+              key={index}
+              className="p-3 bg-slate-900 rounded-lg border border-slate-700"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs text-slate-400">
+                  Parameter {index + 1}
+                </span>
+                <button
+                  onClick={() => removeParameter(index)}
+                  className="text-red-400 hover:text-red-300"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={param.name}
+                  onChange={(e) =>
+                    updateParameter(index, "name", e.target.value)
+                  }
+                  placeholder="Variable name"
+                  className="w-full bg-slate-700 text-white px-3 py-2 rounded border border-slate-600 text-sm"
+                />
+
+                <select
+                  value={param.sourceNode}
+                  onChange={(e) =>
+                    updateParameter(index, "sourceNode", e.target.value)
+                  }
+                  className="w-full bg-slate-700 text-white px-3 py-2 rounded border border-slate-600 text-sm"
+                >
+                  <option value="">Select source node...</option>
+                  {availableNodes.map((node) => (
+                    <option key={node.nodeId} value={node.nodeId}>
+                      {node.label} ({node.nodeId})
+                    </option>
+                  ))}
+                </select>
+
+                {param.sourceNode && (
+                  <select
+                    value={param.field}
+                    onChange={(e) =>
+                      updateParameter(index, "field", e.target.value)
+                    }
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded border border-slate-600 text-sm"
+                  >
+                    <option value="">Select field...</option>
+                    {getFieldsForNode(param.sourceNode).map((field) => (
+                      <option key={field} value={field}>
+                        {field}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <input
+                  type="number"
+                  value={param.defaultValue || 0}
+                  onChange={(e) =>
+                    updateParameter(
+                      index,
+                      "defaultValue",
+                      parseFloat(e.target.value)
+                    )
+                  }
+                  placeholder="Default value"
+                  className="w-full bg-slate-700 text-white px-3 py-2 rounded border border-slate-600 text-sm"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-2">
+            Output Name
+          </label>
+          <input
+            type="text"
+            value={config.outputName || ""}
+            onChange={(e) =>
+              onChange({ ...config, outputName: e.target.value })
+            }
+            placeholder="result"
+            className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+          />
+        </div>
+
         <div>
           <label className="block text-slate-300 text-sm font-medium mb-2">
             Unit
@@ -807,57 +1055,158 @@ const FormulaConfig = ({ config, onChange }) => {
             className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
           />
         </div>
-
-        <div>
-          <label className="block text-slate-300 text-sm font-medium mb-2">
-            Decimals
-          </label>
-          <input
-            type="number"
-            value={config.decimals || 2}
-            onChange={(e) =>
-              onChange({ ...config, decimals: parseInt(e.target.value) })
-            }
-            className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
-          />
-        </div>
       </div>
     </div>
   );
 };
 
-const ConditionConfig = ({ config, onChange, workflow }) => {
-  const [availableFields, setAvailableFields] = useState([]);
-  const [selectedField, setSelectedField] = useState(config.field || "");
-  console.log("config", config);
-  useEffect(() => {
-    // Get fields from previous data-source node
-    const inputNodes =
-      workflow?.nodes.filter((n) => n.type === "data-source") || [];
-    if (inputNodes.length > 0) {
-      const fields = inputNodes[0].config?.fields || [];
-      setAvailableFields(fields);
-      if (!selectedField && fields.length > 0) {
-        setSelectedField(fields[0]);
-      }
-    }
-  }, [workflow]);
+const JoinConfig = ({ config, onChange, workflow, node }) => {
+  const [availableDataSources, setAvailableDataSources] = useState([]);
 
   useEffect(() => {
-    if (selectedField) {
-      onChange({ ...config, field: selectedField });
+    if (workflow) {
+      // Get all data-source nodes before this join node
+      const nodeIndex = workflow.nodes.findIndex(
+        (n) => n.nodeId === node.nodeId
+      );
+      const dataSourceNodes = workflow.nodes
+        .slice(0, nodeIndex)
+        .filter((n) => n.type === "data-source");
+      setAvailableDataSources(dataSourceNodes);
     }
-  }, [selectedField]);
+  }, [workflow, node]);
+
+  const getFieldsForSource = (sourceNodeId) => {
+    const sourceNode = workflow?.nodes.find((n) => n.nodeId === sourceNodeId);
+    return sourceNode?.config?.fields || [];
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+        <p className="text-xs text-blue-400">
+          Join two data sources based on matching fields
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-slate-300 text-sm font-medium mb-2">
+          Left Source <span className="text-red-400">*</span>
+        </label>
+        <select
+          value={config.leftSource || ""}
+          onChange={(e) => onChange({ ...config, leftSource: e.target.value })}
+          className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+        >
+          <option value="">Select left source...</option>
+          {availableDataSources.map((node) => (
+            <option key={node.nodeId} value={node.nodeId}>
+              {node.label} ({node.nodeId})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {config.leftSource && (
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-2">
+            Left Key Field <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={config.leftKey || ""}
+            onChange={(e) => onChange({ ...config, leftKey: e.target.value })}
+            className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+          >
+            <option value="">Select field...</option>
+            {getFieldsForSource(config.leftSource).map((field) => (
+              <option key={field} value={field}>
+                {field}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-slate-300 text-sm font-medium mb-2">
+          Right Source <span className="text-red-400">*</span>
+        </label>
+        <select
+          value={config.rightSource || ""}
+          onChange={(e) => onChange({ ...config, rightSource: e.target.value })}
+          className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+        >
+          <option value="">Select right source...</option>
+          {availableDataSources.map((node) => (
+            <option key={node.nodeId} value={node.nodeId}>
+              {node.label} ({node.nodeId})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {config.rightSource && (
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-2">
+            Right Key Field <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={config.rightKey || ""}
+            onChange={(e) => onChange({ ...config, rightKey: e.target.value })}
+            className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+          >
+            <option value="">Select field...</option>
+            {getFieldsForSource(config.rightSource).map((field) => (
+              <option key={field} value={field}>
+                {field}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-slate-300 text-sm font-medium mb-2">
+          Join Type
+        </label>
+        <select
+          value={config.joinType || "inner"}
+          onChange={(e) => onChange({ ...config, joinType: e.target.value })}
+          className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+        >
+          <option value="inner">Inner Join (matching records only)</option>
+          <option value="left">Left Join (all from left)</option>
+          <option value="right">Right Join (all from right)</option>
+        </select>
+      </div>
+
+      {config.leftKey && config.rightKey && (
+        <div className="p-3 bg-slate-900 rounded-lg">
+          <div className="text-xs text-slate-400 mb-1">Join Preview:</div>
+          <div className="text-sm text-white font-mono">
+            {config.leftKey} = {config.rightKey}
+          </div>
+          <div className="text-xs text-slate-400 mt-1">
+            Type: {config.joinType || "inner"}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ConditionConfig = ({ config, onChange, workflow, node }) => {
+  const availableFields = getAvailableFieldsAtNode(workflow, node.nodeId);
 
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Field
+          Field <span className="text-red-400">*</span>
         </label>
         <select
-          value={selectedField}
-          onChange={(e) => setSelectedField(e.target.value)}
+          value={config.field || ""}
+          onChange={(e) => onChange({ ...config, field: e.target.value })}
           className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
         >
           <option value="">Select field...</option>
@@ -871,7 +1220,7 @@ const ConditionConfig = ({ config, onChange, workflow }) => {
 
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Condition
+          Operator
         </label>
         <select
           value={config.operator || ""}
@@ -890,7 +1239,7 @@ const ConditionConfig = ({ config, onChange, workflow }) => {
 
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Value
+          Threshold Value
         </label>
         <input
           type="number"
@@ -899,26 +1248,29 @@ const ConditionConfig = ({ config, onChange, workflow }) => {
             onChange({ ...config, threshold: parseFloat(e.target.value) })
           }
           className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
-          placeholder="Enter value..."
         />
       </div>
 
-      <div className="p-3 bg-slate-900 rounded-lg">
-        <div className="text-xs text-slate-400 mb-1">Preview:</div>
-        <div className="text-sm text-white font-mono">
-          {selectedField} {config.operator || ">"} {config.threshold || 0}
+      {config.field && config.operator && config.threshold !== undefined && (
+        <div className="p-3 bg-slate-900 rounded-lg">
+          <div className="text-xs text-slate-400 mb-1">Condition Preview:</div>
+          <div className="text-sm text-white font-mono">
+            {config.field} {config.operator} {config.threshold}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-const AggregationConfig = ({ config, onChange }) => {
+const AggregationConfig = ({ config, onChange, workflow, node }) => {
+  const availableFields = getAvailableFieldsAtNode(workflow, node.nodeId);
+  console.log("field", config);
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
-          Operation
+          Operation <span className="text-red-400">*</span>
         </label>
         <select
           value={config.operation || ""}
@@ -936,6 +1288,24 @@ const AggregationConfig = ({ config, onChange }) => {
 
       <div>
         <label className="block text-slate-300 text-sm font-medium mb-2">
+          Field to Aggregate <span className="text-red-400">*</span>
+        </label>
+        <select
+          value={config.field || ""}
+          onChange={(e) => onChange({ ...config, field: e.target.value })}
+          className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+        >
+          <option value="">Select field...</option>
+          {availableFields.map((field) => (
+            <option key={field} value={field}>
+              {field}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-slate-300 text-sm font-medium mb-2">
           Time Window
         </label>
         <select
@@ -943,6 +1313,8 @@ const AggregationConfig = ({ config, onChange }) => {
           onChange={(e) => onChange({ ...config, timeWindow: e.target.value })}
           className="w-full bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
         >
+          <option value="5m">Last 5 minutes</option>
+          <option value="15m">Last 15 minutes</option>
           <option value="1h">Last 1 hour</option>
           <option value="6h">Last 6 hours</option>
           <option value="24h">Last 24 hours</option>
@@ -987,16 +1359,8 @@ const AlertConfig = ({ config, onChange }) => {
   );
 };
 
-const FilterConfig = ({ config, onChange, workflow }) => {
-  const [availableFields, setAvailableFields] = useState([]);
-
-  useEffect(() => {
-    const inputNodes =
-      workflow?.nodes.filter((n) => n.type === "data-source") || [];
-    if (inputNodes.length > 0) {
-      setAvailableFields(inputNodes[0].config?.fields || []);
-    }
-  }, [workflow]);
+const FilterConfig = ({ config, onChange, workflow, node }) => {
+  const availableFields = getAvailableFieldsAtNode(workflow, node.nodeId);
 
   return (
     <div className="space-y-4">
@@ -1054,16 +1418,8 @@ const FilterConfig = ({ config, onChange, workflow }) => {
   );
 };
 
-const TransformConfig = ({ config, onChange, workflow }) => {
-  const [availableFields, setAvailableFields] = useState([]);
-
-  useEffect(() => {
-    const inputNodes =
-      workflow?.nodes.filter((n) => n.type === "data-source") || [];
-    if (inputNodes.length > 0) {
-      setAvailableFields(inputNodes[0].config?.fields || []);
-    }
-  }, [workflow]);
+const TransformConfig = ({ config, onChange, workflow, node }) => {
+  const availableFields = getAvailableFieldsAtNode(workflow, node.nodeId);
 
   return (
     <div className="space-y-4">
@@ -1082,6 +1438,7 @@ const TransformConfig = ({ config, onChange, workflow }) => {
           <option value="select">Select Fields</option>
           <option value="rename">Rename Fields</option>
           <option value="convert">Convert Types</option>
+          <option value="merge">Merge Sources</option>
         </select>
       </div>
 
@@ -1118,52 +1475,12 @@ const TransformConfig = ({ config, onChange, workflow }) => {
           </div>
         </div>
       )}
-
-      {config.transformType === "rename" && (
-        <div>
-          <label className="block text-slate-300 text-sm font-medium mb-2">
-            Rename Mapping
-          </label>
-          {availableFields.map((field) => (
-            <div key={field} className="flex items-center gap-2 mb-2">
-              <input
-                type="text"
-                value={field}
-                disabled
-                className="flex-1 bg-slate-700 text-white px-3 py-2 rounded border border-slate-600"
-              />
-              <span className="text-slate-400">→</span>
-              <input
-                type="text"
-                value={(config.mapping || {})[field] || field}
-                onChange={(e) =>
-                  onChange({
-                    ...config,
-                    mapping: { ...config.mapping, [field]: e.target.value },
-                  })
-                }
-                placeholder="New name"
-                className="flex-1 bg-slate-700 text-white px-3 py-2 rounded border border-slate-600"
-              />
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
 
-const OutputConfig = ({ config, onChange, workflow }) => {
-  const [availableFields, setAvailableFields] = useState([]);
-
-  useEffect(() => {
-    // Get all fields from workflow
-    const dataNodes =
-      workflow?.nodes.filter((n) => n.type === "data-source") || [];
-    if (dataNodes.length > 0) {
-      setAvailableFields(dataNodes[0].config?.fields || []);
-    }
-  }, [workflow]);
+const OutputConfig = ({ config, onChange, workflow, node }) => {
+  const availableFields = getAvailableFieldsAtNode(workflow, node.nodeId);
 
   return (
     <div className="space-y-4">
@@ -1218,6 +1535,7 @@ const AddNodeModal = ({ onAdd, onClose }) => {
     { type: "condition", name: "Condition", icon: GitBranch },
     { type: "aggregation", name: "Aggregation", icon: TrendingUp },
     { type: "filter", name: "Filter", icon: Filter },
+    { type: "join", name: "Join", icon: Link }, // NEW
     { type: "alert", name: "Alert", icon: Bell },
     { type: "transform", name: "Transform", icon: Zap },
     { type: "output", name: "Output", icon: Eye },

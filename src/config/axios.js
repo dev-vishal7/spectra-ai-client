@@ -23,7 +23,7 @@ axios.interceptors.response.use(
         "Authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
       // Redirect to login page
-      window.location.href = "/sign-in";
+      window.location.href = "/ai/sign-in";
     }
 
     return Promise.reject(error);

@@ -321,7 +321,7 @@ const WidgetRenderer = ({ widget, data, position, onOpenWorkflow }) => {
       case "line-chart":
         return <LineChartWidget widget={widget} data={data} />;
       case "area-chart":
-        return <AreaChartWidget widget={widget} data={data} />;
+        return <LineChartWidget widget={widget} data={data} />;
       case "bar-chart":
         return <BarChartWidget widget={widget} data={data} />;
       case "gauge":
@@ -435,6 +435,27 @@ const LineChartWidget = ({ widget, data }) => {
   );
 };
 
+const BarChartWidget = ({ widget, data }) => {
+  if (!data.history) return <EmptyDataWidget message="No data" />;
+
+  const chartData = data.history.slice(-15).map((item) => ({
+    time: new Date(item.timestamp).toLocaleTimeString(),
+    value: item.value,
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+        <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
+        <YAxis stroke="#94a3b8" fontSize={12} />
+        <Tooltip />
+        <Bar dataKey="value" fill="#3b82f6" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
 const GaugeWidget = ({ widget, data }) => {
   const value = data.current || data.value || 0;
   const min = widget.settings?.min || 0;
@@ -542,7 +563,7 @@ const TableWidget = ({ widget, data }) => {
   );
 };
 
-const EmptyDataWidget = ({ widget }) => (
+const EmptyDataWidget = () => (
   <div className="h-full flex flex-col items-center justify-center text-center">
     <BarChart3 className="text-slate-600 mb-3" size={32} />
     <p className="text-slate-500 text-sm">No data available</p>

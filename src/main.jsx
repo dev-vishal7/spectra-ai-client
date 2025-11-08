@@ -7,7 +7,7 @@ import "./config/axios";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/ai">
       <App />
     </BrowserRouter>
   </React.StrictMode>

@@ -18,6 +18,7 @@ import LandingPage from "./pages/landing-page";
 import DashboardPreview from "./pages/DashboardPreview";
 import FactoryLayout from "./pages/FactorySetup";
 import WorkflowEditor from "./pages/WorkflowEditor";
+import LayoutsPage from "./pages/LayoutsPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -96,8 +97,20 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/layouts"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <LayoutsPage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="builder">
                   <Route path="factory-layout" element={<FactoryLayout />} />
+                  <Route
+                    path="factory-layout/:id"
+                    element={<FactoryLayout />}
+                  />
                   <Route path="choose-template" element={<ChooseTemplate />} />
                   <Route path="configure" element={<ConfigureDashboard />} />
                 </Route>

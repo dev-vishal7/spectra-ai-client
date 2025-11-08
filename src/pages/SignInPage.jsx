@@ -75,7 +75,7 @@ const SignIn = ({ onLogin }) => {
 
           <p className="text-center mt-4 text-gray-400">
             Don't have an account?{" "}
-            <a href="/sign-up" className="text-indigo-400 hover:underline">
+            <a href="/ai/sign-up" className="text-indigo-400 hover:underline">
               Create Organization
             </a>
           </p>

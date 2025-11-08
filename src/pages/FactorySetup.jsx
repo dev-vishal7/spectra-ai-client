@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Rnd } from "react-rnd";
 import {
   Plus,
@@ -14,6 +14,7 @@ import {
   Check,
   X,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -27,6 +28,9 @@ const ITEM_CATEGORIES = [
 
 const FactoryLayout = () => {
   const navigate = useNavigate();
+  const { id } = useParams(); // Get layout ID from URL params
+  const isEditMode = !!id;
+
   const [layoutName, setLayoutName] = useState("");
   const [items, setItems] = useState([]);
   const [availableSources, setAvailableSources] = useState([]);
@@ -39,7 +43,34 @@ const FactoryLayout = () => {
 
   useEffect(() => {
     loadAvailableSources();
-  }, []);
+    if (isEditMode) {
+      loadLayout();
+    }
+  }, [id]);
+
+  const loadLayout = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/dashboard/layout/${id}`);
+      const layoutData = response.data.layout;
+
+      setLayoutName(layoutData.name);
+      // Add unique IDs to items if they don't have one
+      const itemsWithIds = layoutData.items.map((item, index) => ({
+        ...item,
+        id: item._id || `item_${Date.now()}_${index}`,
+      }));
+      setItems(itemsWithIds);
+
+      toast.success("Layout loaded successfully");
+    } catch (error) {
+      console.error("Load layout error:", error);
+      toast.error("Failed to load layout");
+      navigate("/layouts");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadAvailableSources = async () => {
     try {
@@ -57,7 +88,7 @@ const FactoryLayout = () => {
       ...itemData,
       category: selectedCategory,
       position: { x: 50, y: 50 },
-      sourceConfig: null, // Will be configured later
+      sourceConfig: null,
       createdAt: new Date(),
     };
     setItems([...items, newItem]);
@@ -67,7 +98,7 @@ const FactoryLayout = () => {
   };
 
   const handleRemoveItem = (itemId) => {
-    if (confirm("Remove this item?")) {
+    if (window.confirm("Remove this item?")) {
       setItems(items.filter((item) => item.id !== itemId));
       toast.success("Item removed");
     }
@@ -106,7 +137,6 @@ const FactoryLayout = () => {
       const layoutData = {
         name: layoutName,
         items: items.map((item) => ({
-          id: item.id,
           name: item.name,
           type: item.type,
           category: item.category,
@@ -116,13 +146,17 @@ const FactoryLayout = () => {
         })),
       };
 
-      const response = await axios.post("/dashboard/layout/create", layoutData);
+      if (isEditMode) {
+        // Update existing layout
+        await axios.put(`/dashboard/layout/${id}`, layoutData);
+        toast.success("Layout updated successfully!");
+      } else {
+        // Create new layout
+        await axios.post("/dashboard/layout/create", layoutData);
+        toast.success("Layout created successfully!");
+      }
 
-      // Save layout ID for next steps
-      localStorage.setItem("currentLayoutId", response.data.layout._id);
-
-      toast.success("Layout saved successfully!");
-      navigate("/builder/choose-template");
+      navigate("/layouts");
     } catch (error) {
       console.error("Save error:", error);
       toast.error(error.response?.data?.message || "Failed to save layout");
@@ -145,18 +179,42 @@ const FactoryLayout = () => {
     return availableSources.find((s) => s._id === sourceId);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2
+            className="animate-spin text-blue-400 mx-auto mb-4"
+            size={48}
+          />
+          <p className="text-slate-400">Loading layout...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 p-6">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Factory Layout Designer
-            </h1>
-            <p className="text-slate-400">
-              Design your factory layout and configure data sources
-            </p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/layouts")}
+              className="p-2 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                {isEditMode ? "Edit Layout" : "Create Layout"}
+              </h1>
+              <p className="text-slate-400">
+                {isEditMode
+                  ? "Update your factory layout and configure data sources"
+                  : "Design your factory layout and configure data sources"}
+              </p>
+            </div>
           </div>
           <button
             onClick={handleSaveLayout}
@@ -166,12 +224,12 @@ const FactoryLayout = () => {
             {saving ? (
               <>
                 <Loader2 className="animate-spin" size={20} />
-                Saving...
+                {isEditMode ? "Updating..." : "Saving..."}
               </>
             ) : (
               <>
                 <Save size={20} />
-                Save & Continue
+                {isEditMode ? "Update Layout" : "Save Layout"}
               </>
             )}
           </button>
@@ -336,8 +394,8 @@ const FactoryLayout = () => {
                     key={item.id}
                     bounds="parent"
                     default={{
-                      x: item.position.x,
-                      y: item.position.y,
+                      x: item.position?.x || 50,
+                      y: item.position?.y || 50,
                       width: 180,
                       height: 100,
                     }}

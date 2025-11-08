@@ -14,7 +14,7 @@ const Sidebar = () => {
     },
     {
       name: "Layout",
-      path: "/builder/factory-layout",
+      path: "/layouts",
       icon: <LayoutDashboard size={20} />,
     },
     {
@@ -31,8 +31,9 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`h-full bg-[#1f2937] w-64 shadow-md border-r border-gray-700 p-4 transition-al text-white  transition-all duration-300
-        ${collapsed ? "w-20" : "w-64"}`}
+      className={`h-full bg-[#1f2937] shadow-md border-r border-gray-700 p-4 transition-al text-white  transition-all duration-300   ${
+        collapsed ? "w-20" : "w-50"
+      }`}
     >
       {/* <div className="flex justify-between items-center mb-6">
         {!collapsed && (
