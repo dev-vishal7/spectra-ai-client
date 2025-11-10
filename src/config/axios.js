@@ -20,7 +20,7 @@ axios.interceptors.response.use(
       // Remove user data and token
       localStorage.removeItem("user");
       document.cookie =
-        "Authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        "Authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/ai;";
 
       // Redirect to login page
       window.location.href = "/ai/sign-in";

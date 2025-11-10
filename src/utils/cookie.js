@@ -16,7 +16,7 @@ function getCookie(cookieName) {
     ?.split("=")[1];
 }
 
-const defaultOptions = { path: "/", sameSite: "lax", secure: true };
+const defaultOptions = { path: "/ai", sameSite: "lax", secure: true };
 function setCookie(name, value, options) {
   const { expires, path, sameSite, secure } = {
     ...defaultOptions,
