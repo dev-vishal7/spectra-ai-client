@@ -59,6 +59,10 @@ const SignUp = ({ onLogin }) => {
             "Bearer " + loginResponse.data.token
           );
           setCookie("Authorization", "Bearer " + loginResponse.data.token);
+          localStorage.setItem(
+            "Authorization",
+            "Bearer " + loginResponse.data.token
+          );
 
           onLogin(loginResponse.data.user);
           navigate("/dashboard");

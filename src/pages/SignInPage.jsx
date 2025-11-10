@@ -23,6 +23,7 @@ const SignIn = ({ onLogin }) => {
           "Bearer " + response.data.token
         );
         setCookie("Authorization", "Bearer " + response.data.token);
+        localStorage.setItem("Authorization", "Bearer " + response.data.token);
         onLogin(response.data.user);
         navigate("/dashboard");
       } else {

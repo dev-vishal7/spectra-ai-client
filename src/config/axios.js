@@ -3,7 +3,8 @@ import { getCookie } from "../utils/cookie";
 import { addHeaderToAxiosConfig } from "../utils/add-header-to-axios-config";
 
 // ✅ Get token from cookies
-const { Authorization } = getCookie(["Authorization"]);
+// const { Authorization } = getCookie(["Authorization"]);
+const Authorization = localStorage.getItem("Authorization");
 addHeaderToAxiosConfig("Authorization", Authorization);
 
 // ✅ Set base URL
@@ -19,6 +20,7 @@ axios.interceptors.response.use(
 
       // Remove user data and token
       localStorage.removeItem("user");
+      localStorage.removeItem("Authorization");
       document.cookie =
         "Authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/ai;";
 
