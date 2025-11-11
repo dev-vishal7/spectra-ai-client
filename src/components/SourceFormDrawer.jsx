@@ -25,26 +25,26 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
     if (initialData) {
       setSource(initialData);
 
-      if (initialData.config.topic) {
-        const topicArray = Array.isArray(initialData.config.topic)
+      if (initialData.config?.topic) {
+        const topicArray = Array.isArray(initialData.config?.topic)
           ? initialData.config.topic
           : [initialData.config.topic];
         setTopics(topicArray);
       }
 
-      if (initialData.config.tags) {
-        setTags(initialData.config.tags);
+      if (initialData?.config?.tags) {
+        setTags(initialData.config?.tags);
       }
 
       if (initialData.protocol === "Excel Upload" && initialData.fileInfo) {
         setFilePreview(initialData.fileInfo);
       }
 
-      if (initialData.protocol === "API" && initialData.apiConfig) {
+      if (initialData.protocol === "API" && initialData?.apiConfig) {
         if (initialData.apiConfig.headers) {
-          const headerArray = Object.entries(initialData.apiConfig.headers).map(
-            ([key, value]) => ({ key, value })
-          );
+          const headerArray = Object.entries(
+            initialData?.apiConfig?.headers
+          ).map(([key, value]) => ({ key, value }));
           setApiHeaders(
             headerArray.length > 0 ? headerArray : [{ key: "", value: "" }]
           );
@@ -1204,14 +1204,14 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
               <Input
                 label="Location"
                 placeholder="e.g., Factory Floor A, Room 101"
-                value={source.config.location || ""}
+                value={source.config?.location || ""}
                 onChange={(e) => handleConfigChange("location", e.target.value)}
               />
 
               <Input
                 label="Equipment"
                 placeholder="e.g., Motor 1, Pump A"
-                value={source.config.equipment || ""}
+                value={source.config?.equipment || ""}
                 onChange={(e) =>
                   handleConfigChange("equipment", e.target.value)
                 }
@@ -1223,7 +1223,7 @@ const SourceFormDrawer = ({ isOpen, onClose, onSave, initialData = null }) => {
                 </label>
                 <textarea
                   placeholder="Describe what this source monitors..."
-                  value={source.config.description || ""}
+                  value={source.config?.description || ""}
                   onChange={(e) =>
                     handleConfigChange("description", e.target.value)
                   }
