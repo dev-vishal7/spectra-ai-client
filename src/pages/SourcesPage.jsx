@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileSpreadsheet,
+  Globe,
+  RefreshCw,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import SourceFormDrawer from "../components/SourceFormDrawer";
 import axios from "axios";
@@ -9,6 +16,7 @@ const SourcesPage = () => {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [editingSource, setEditingSource] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [triggeringPoll, setTriggeringPoll] = useState(null);
 
   useEffect(() => {
     fetchSources();
@@ -61,7 +69,7 @@ const SourcesPage = () => {
           });
           toast.success("Excel file uploaded and processed!", { id: toastId });
         } else {
-          // Regular source creation
+          // Regular source creation (including API)
           await axios.post("/sources/create", sourceData);
           toast.success("Source created successfully!", { id: toastId });
         }
@@ -89,9 +97,27 @@ const SourcesPage = () => {
     }
   };
 
+  const handleTriggerPoll = async (source) => {
+    try {
+      setTriggeringPoll(source._id);
+      const toastId = toast.loading("Triggering API poll...");
+
+      await axios.post(`/sources/trigger-poll/${source._id}`);
+
+      toast.success("API poll triggered successfully!", { id: toastId });
+    } catch (err) {
+      toast.error("Failed to trigger poll.");
+      console.error(err);
+    } finally {
+      setTriggeringPoll(null);
+    }
+  };
+
   const getProtocolIcon = (protocol) => {
     if (protocol === "Excel Upload") {
       return <FileSpreadsheet size={20} className="text-green-400" />;
+    } else if (protocol === "API") {
+      return <Globe size={20} className="text-purple-400" />;
     }
     return null;
   };
@@ -102,6 +128,7 @@ const SourcesPage = () => {
       "Modbus TCP": "bg-purple-500/20 text-purple-400",
       RS485: "bg-orange-500/20 text-orange-400",
       "Excel Upload": "bg-green-500/20 text-green-400",
+      API: "bg-indigo-500/20 text-indigo-400",
     };
 
     return (
@@ -113,6 +140,35 @@ const SourcesPage = () => {
         {protocol}
       </span>
     );
+  };
+
+  const formatTimeAgo = (date) => {
+    if (!date) return "Never";
+
+    const now = new Date();
+    const diff = now - new Date(date);
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  const formatNextPoll = (date) => {
+    if (!date) return null;
+
+    const now = new Date();
+    const diff = new Date(date) - now;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+
+    if (seconds < 0) return "Now";
+    if (seconds < 60) return `in ${seconds}s`;
+    return `in ${minutes}m`;
   };
 
   return (
@@ -160,6 +216,21 @@ const SourcesPage = () => {
                   <h2 className="text-lg font-semibold">{source.name}</h2>
                 </div>
                 <div className="flex gap-2">
+                  {source.protocol === "API" && (
+                    <button
+                      onClick={() => handleTriggerPoll(source)}
+                      disabled={triggeringPoll === source._id}
+                      className="text-zinc-400 cursor-pointer hover:text-purple-500 transition disabled:opacity-50"
+                      title="Trigger Poll Now"
+                    >
+                      <RefreshCw
+                        size={18}
+                        className={
+                          triggeringPoll === source._id ? "animate-spin" : ""
+                        }
+                      />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleOpenDrawer(source)}
                     className="text-zinc-400 cursor-pointer hover:text-blue-500 transition"
@@ -193,6 +264,35 @@ const SourcesPage = () => {
                         source.fileInfo.uploadedAt
                       ).toLocaleDateString()}
                     </p>
+                  </div>
+                )}
+
+                {source.protocol === "API" && source.apiConfig && (
+                  <div className="mt-2 text-xs space-y-1">
+                    <p
+                      className="text-zinc-400 truncate"
+                      title={source.apiConfig.url}
+                    >
+                      🔗 {source.apiConfig.url}
+                    </p>
+                    <p className="text-zinc-400">
+                      ⏱️ Poll every {source.apiConfig.pollingInterval / 1000}s
+                    </p>
+                    {source.apiConfig.lastPollAt && (
+                      <p className="text-zinc-500">
+                        Last poll: {formatTimeAgo(source.apiConfig.lastPollAt)}
+                      </p>
+                    )}
+                    {source.apiConfig.nextPollAt && (
+                      <p className="text-blue-400">
+                        Next poll: {formatNextPoll(source.apiConfig.nextPollAt)}
+                      </p>
+                    )}
+                    {source.apiConfig.pollCount > 0 && (
+                      <p className="text-zinc-500">
+                        Total polls: {source.apiConfig.pollCount}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -235,15 +335,23 @@ const SourcesPage = () => {
                         ? "text-green-400"
                         : source.status === "idle"
                         ? "text-yellow-400"
+                        : source.status === "polling"
+                        ? "text-blue-400"
+                        : source.status === "error"
+                        ? "text-red-400"
                         : "text-zinc-500"
                     }`}
                   >
                     <span
                       className={`w-2 h-2 rounded-full ${
                         source.connectionStatus?.connected
-                          ? "bg-green-400"
+                          ? "bg-green-400 animate-pulse"
                           : source.status === "idle"
                           ? "bg-yellow-400"
+                          : source.status === "polling"
+                          ? "bg-blue-400 animate-pulse"
+                          : source.status === "error"
+                          ? "bg-red-400"
                           : "bg-zinc-500"
                       }`}
                     ></span>
@@ -251,10 +359,25 @@ const SourcesPage = () => {
                       ? "Connected"
                       : source.status === "idle"
                       ? "Ready"
+                      : source.status === "polling"
+                      ? "Polling"
+                      : source.status === "error"
+                      ? "Error"
                       : "Disconnected"}
                   </span>
-                  <span className="text-zinc-500">{source.status}</span>
+                  <span className="text-zinc-500 capitalize">
+                    {source.status}
+                  </span>
                 </div>
+
+                {source.lastError && (
+                  <p
+                    className="text-xs text-red-400 mt-1 truncate"
+                    title={source.lastError}
+                  >
+                    ⚠️ {source.lastError}
+                  </p>
+                )}
               </div>
             </div>
           ))}
