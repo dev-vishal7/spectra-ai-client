@@ -16,6 +16,7 @@ import DataTable from "./components/DataTable";
 import AIChatbot from "./components/AIChatbot";
 import DashboardView from "./components/DashboardView";
 import AnalyticsTab from "./components/AnalyticsTab";
+import { useNavigate } from "react-router-dom";
 
 // Mock dashboards data
 const mockDashboards = [
@@ -67,7 +68,7 @@ export default function Dashboard() {
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDashboard, setSelectedDashboard] = useState(null);
-
+  const navigate = useNavigate();
   // Real-time data states
   const [realtimeMetrics, setRealtimeMetrics] = useState({
     temperature: {
@@ -213,7 +214,10 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+              <button
+                onClick={() => navigate("/layouts")}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+              >
                 <Plus size={18} /> Create Dashboard
               </button>
               <div className="bg-green-500/10 text-green-400 px-4 py-2 rounded-lg flex items-center gap-2">

@@ -148,7 +148,7 @@ const ChooseTemplate = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/builder/factory-layout")}
+              onClick={() => navigate("/layouts")}
               className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium transition"
             >
               <ArrowLeft size={20} />

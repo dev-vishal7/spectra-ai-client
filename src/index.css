@@ -12,3 +12,26 @@ body {
   font-family: "Inter", sans-serif;
   @apply text-white bg-[#0f172a];
 }
+/* custom React Flow tweaks */
+.rf-node-transparent {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* tiny smooth transition for nodes / panels */
+.smooth-transition {
+  transition: box-shadow 180ms ease, transform 160ms ease,
+    background-color 160ms ease;
+}
+
+/* custom scrollbar look (optional) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}

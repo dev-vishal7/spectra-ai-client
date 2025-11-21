@@ -256,7 +256,7 @@ const ConfigureDashboard = () => {
 
       <div className="max-w-7xl mx-auto">
         {/* Domain Selection */}
-        {!selectedDomain && !generatedDashboardId && (
+        {/* {!selectedDomain && !generatedDashboardId && (
           <div className="space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">
@@ -296,13 +296,12 @@ const ConfigureDashboard = () => {
               })}
             </div>
           </div>
-        )}
+        )} */}
 
-        {/* AI Input Section */}
-        {selectedDomain && !generatedDashboardId && (
+        {!generatedDashboardId && (
           <div className="space-y-6">
             {/* Selected Domain Header */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 border border-slate-600">
+            {/* <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {(() => {
@@ -332,7 +331,7 @@ const ConfigureDashboard = () => {
                   Change Domain
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* Main Input */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
@@ -387,12 +386,12 @@ const ConfigureDashboard = () => {
 
             {/* Example Prompts */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+              {/* <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <Sparkles className="text-yellow-400" size={20} />
                 Example Prompts for {selectedDomainData.name}
-              </h3>
+              </h3> */}
               <div className="space-y-2">
-                {selectedDomainData.prompts.map((prompt, idx) => (
+                {DOMAINS[4].prompts.map((prompt, idx) => (
                   <button
                     key={idx}
                     onClick={() => handlePromptSelect(prompt)}

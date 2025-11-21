@@ -18,6 +18,11 @@ const Sidebar = () => {
       icon: <LayoutDashboard size={20} />,
     },
     {
+      name: "Data Pipeline",
+      path: "/pipelines",
+      icon: <LayoutDashboard size={20} />,
+    },
+    {
       name: "Sources",
       path: "/sources",
       icon: <Folder size={20} />,

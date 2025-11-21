@@ -62,7 +62,7 @@ export default function Dashboard() {
     totalViews: 0,
     activeAlerts: 0,
   });
-
+  const navigate = useNavigate();
   useEffect(() => {
     loadDashboards();
     loadOverviewData();
@@ -219,9 +219,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() =>
-                  (window.location.href = "/ai/builder/factory-layout")
-                }
+                onClick={() => navigate("/layouts")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
               >
                 <Plus size={18} /> Create Dashboard
@@ -361,7 +359,7 @@ const DashboardsTab = ({ dashboards, loading, onView, onDelete }) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-white text-xl font-semibold">Your Dashboards</h2>
         <button
-          onClick={() => navigate(`/builder/factory-layout`)}
+          onClick={() => navigate(`/layouts`)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
         >
           <Plus size={18} /> New Dashboard

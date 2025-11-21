@@ -141,7 +141,7 @@ const DashboardPreview = () => {
           <AlertCircle className="text-red-400 mx-auto mb-4" size={48} />
           <p className="text-white text-lg mb-4">Dashboard not found</p>
           <button
-            onClick={() => navigate("/builder/factory-layout")}
+            onClick={() => navigate("/layouts")}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg"
           >
             Start Over
@@ -170,12 +170,12 @@ const DashboardPreview = () => {
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate("/builder/configure")}
+              {/* <button
+                onClick={() => navigate("/")}
                 className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
               >
                 <ArrowLeft className="text-white" size={20} />
-              </button>
+              </button> */}
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-bold text-white">
@@ -208,12 +208,12 @@ const DashboardPreview = () => {
                 </span>
               </button>
 
-              <button
+              {/* <button
                 onClick={handleRegenerate}
                 className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition"
               >
                 Regenerate
-              </button>
+              </button> */}
 
               <button
                 onClick={handlePublish}

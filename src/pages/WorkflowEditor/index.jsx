@@ -162,7 +162,7 @@ const CustomNode = ({ data }) => {
 
       <div
         onClick={data.onClick}
-        className={`${colors.bg} ${colors.border} border-2 rounded-xl p-4 min-w-[220px] cursor-pointer hover:shadow-xl transition-all backdrop-blur-sm`}
+        className={`${colors.bg} ${colors.border} border-2 rounded-xl p-4 min-w-[220px] cursor-pointer transition-all backdrop-blur-sm`}
       >
         <div className="flex items-center gap-3 mb-2">
           <Icon size={20} className={colors.text} />

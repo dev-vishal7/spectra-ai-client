@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import SignInPage from "./pages/SignInPage";
@@ -19,9 +19,12 @@ import DashboardPreview from "./pages/DashboardPreview";
 import FactoryLayout from "./pages/FactorySetup";
 import WorkflowEditor from "./pages/WorkflowEditor";
 import LayoutsPage from "./pages/LayoutsPage";
+import Pipelines from "./pages/pipeline";
+import PipelineEditor from "./pages/pipeline/Editor";
 
 function App() {
   const [user, setUser] = useState(null);
+  const location = useLocation();
 
   // Check if user is logged in (from localStorage)
   useEffect(() => {
@@ -30,6 +33,11 @@ function App() {
       setUser(JSON.parse(loggedInUser)); // If logged in, set user state
     }
   }, []);
+
+  const HIDE_SIDEBAR_ROUTES = ["/pipelines", "/builder"];
+  const showSidebar = !HIDE_SIDEBAR_ROUTES.some((r) =>
+    location.pathname.includes(r)
+  );
 
   // Handle login logic
   const handleLogin = (userData) => {
@@ -42,7 +50,7 @@ function App() {
     localStorage.removeItem("user"); // Remove user from localStorage
     setUser(null); // Update state to null on logout
   };
-
+  console.log("showSidebar", showSidebar, location.pathname);
   return (
     <div className="flex flex-col h-screen">
       <Toaster position="bottom-right" />
@@ -52,7 +60,7 @@ function App() {
         <>
           <Header user={user} onLogout={handleLogout} />
           <div className="flex flex-1">
-            <Sidebar />
+            {showSidebar && <Sidebar />}
             <div className="flex-1 p-6 bg-gray-900">
               <Routes>
                 {/* Public Routes */}
@@ -102,6 +110,30 @@ function App() {
                   element={
                     <ProtectedRoute user={user}>
                       <LayoutsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipelines"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <Pipelines />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipelines/create"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <PipelineEditor />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipelines/edit/:id"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <PipelineEditor />
                     </ProtectedRoute>
                   }
                 />

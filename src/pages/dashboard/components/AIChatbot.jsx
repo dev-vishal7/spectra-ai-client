@@ -23,6 +23,7 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [streamingMessage, setStreamingMessage] = useState("");
+  const [conversationId, setConversationId] = useState(null);
   const abortControllerRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -54,17 +55,14 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
     setIsLoading(true);
     setStreamingMessage("");
 
-    // Create abort controller for this request
+    // Create abort controller
     abortControllerRef.current = new AbortController();
 
     try {
       const token = localStorage.getItem("Authorization");
+      if (!token) throw new Error("Please login first");
 
-      if (!token) {
-        throw new Error("Please login first");
-      }
-
-      // Build conversation history (last 10 messages for context)
+      // Build short conversation history (like before)
       const conversationHistory = newMessages
         .slice(-10)
         .filter((msg) => msg.role !== "assistant" || msg.content)
@@ -81,7 +79,8 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
         },
         body: JSON.stringify({
           message: userMessage,
-          conversationHistory: conversationHistory.slice(0, -1), // Exclude current message
+          conversationHistory: conversationHistory.slice(0, -1),
+          conversationId,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -91,53 +90,59 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
+      // === SSE stream ===
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = "";
+      let currentConversationId = conversationId;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        const lines = chunk.split("\n").filter((line) => line.trim() !== "");
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6).trim();
+          if (!line.startsWith("data:")) continue;
 
-            if (data === "[DONE]") {
-              continue;
+          const dataStr = line.slice(5).trim();
+          if (!dataStr) continue;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+
+            if (parsed.type === "conversation_id") {
+              currentConversationId = parsed.conversationId;
+              setConversationId(parsed.conversationId);
             }
 
-            try {
-              const parsed = JSON.parse(data);
-
-              if (parsed.error) {
-                throw new Error(parsed.error);
-              }
-
-              if (parsed.content) {
-                assistantMessage += parsed.content;
-                setStreamingMessage(assistantMessage);
-              }
-            } catch (e) {
-              if (e.message !== "Unexpected end of JSON input") {
-                console.error("Parse error:", e);
-              }
+            if (parsed.type === "content") {
+              assistantMessage += parsed.content;
+              setStreamingMessage(assistantMessage);
             }
+
+            if (parsed.type === "done") {
+              // Push only once, here
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: parsed.fullContent },
+              ]);
+              setStreamingMessage("");
+              setConversationId(parsed.conversationId);
+            }
+
+            if (parsed.type === "error") {
+              throw new Error(parsed.error || "Stream error");
+            }
+          } catch (e) {
+            console.error("Stream parse error:", e, line);
           }
         }
       }
 
-      // Add complete assistant message
-      if (assistantMessage) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: assistantMessage },
-        ]);
-      }
-      setStreamingMessage("");
+      // ✅ Removed the fallback message push here
+      // (so no duplicates — handled in 'done' case only)
     } catch (error) {
       console.error("Chat error:", error);
 
@@ -154,10 +159,7 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
 
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: errorMessage,
-        },
+        { role: "assistant", content: errorMessage },
       ]);
       setStreamingMessage("");
     } finally {
