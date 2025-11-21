@@ -83,7 +83,7 @@ const SmartNode = memo(({ id, data, selected }) => {
 
   return (
     <div
-      className={`relative rounded-xl px-4 py-3 min-w-[200px] transition-shadow duration-150 ${
+      className={`relative border rounded-xl px-4 py-3 min-w-[200px] transition-shadow duration-150 ${
         selected ? "ring-2 ring-blue-500 shadow-lg" : "ring-0"
       } bg-[#061224] text-slate-100`}
       style={{ pointerEvents: "auto" }}
@@ -777,7 +777,7 @@ function EditorContent({ id, isTemplate }) {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate("/pipelines")}
-                className="inline-flex items-center justify-center w-10 h-10 bg-transparent border border-[#1f2937] rounded-lg text-slate-200 hover:bg-[#0b1120]"
+                className="inline-flex  mt-6 items-center justify-center w-10 h-10 bg-transparent border border-[#1f2937] rounded-lg text-slate-200 hover:bg-[#0b1120]"
               >
                 <X className="w-4 h-4 transform rotate-90" />
               </button>
@@ -787,7 +787,27 @@ function EditorContent({ id, isTemplate }) {
                   Data Pipeline
                 </div>
                 <input
-                  className="mt-1 text-xl font-semibold bg-transparent border rounded-full bg-emerald-500/10 border-b-cyan-950 text-slate-50 placeholder:text-slate-500"
+                  className="
+    mt-1
+    w-full
+    px-4
+    py-2
+    text-lg
+    font-semibold
+    text-white
+    placeholder:text-gray-400
+    bg-gray-900
+    border
+    border-gray-700
+    rounded-md
+    focus:outline-none
+    focus:ring-2
+    focus:ring-cyan-500
+    focus:border-cyan-500
+    transition
+    duration-200
+    ease-in-out
+  "
                   value={pipelineName}
                   onChange={(e) => setPipelineName(e.target.value)}
                   placeholder="Untitled Pipeline"

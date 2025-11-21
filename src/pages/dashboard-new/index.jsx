@@ -48,10 +48,9 @@ import AIChatbot from "../dashboard/components/AIChatbot";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-// ============ MAIN DASHBOARD COMPONENT ============
 export default function Dashboard() {
   const [dashboards, setDashboards] = useState([]);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false); // Default open
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDashboard, setSelectedDashboard] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,6 +62,7 @@ export default function Dashboard() {
     activeAlerts: 0,
   });
   const navigate = useNavigate();
+
   useEffect(() => {
     loadDashboards();
     loadOverviewData();
@@ -72,7 +72,6 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const response = await axios.get("/dashboard/list");
-
       if (response.data) {
         const dashboardList = response.data.dashboards || [];
         setDashboards(dashboardList);
@@ -95,17 +94,10 @@ export default function Dashboard() {
 
   const loadOverviewData = async () => {
     try {
-      // Load sources
       const sourcesResponse = await axios.get("/sources/get-sources");
-
       if (sourcesResponse.data) {
         const sources = sourcesResponse.data || [];
-
-        setStats((prev) => ({
-          ...prev,
-          dataSources: sources.length,
-        }));
-        // Get first 6 sources for table
+        setStats((prev) => ({ ...prev, dataSources: sources.length }));
         const recentSources = sources.slice(0, 6);
         const tableData = recentSources.map((source) => ({
           source: source.name,
@@ -117,24 +109,18 @@ export default function Dashboard() {
             : "N/A",
           sourceId: source._id,
         }));
-
         setSensorData(tableData);
 
-        // Load latest data for each source
         recentSources.forEach(async (source) => {
           try {
             const dataResponse = await axios.get(
               `/sources/latest-data/${source._id}`
             );
-
             if (dataResponse.data.success && dataResponse.data.data) {
               const sourceData = dataResponse.data.data;
               const parsed = sourceData.data?.parsed?.value || {};
-
-              // Get first available field value
               const fields = Object.keys(parsed);
               const firstValue = fields.length > 0 ? parsed[fields[0]] : "N/A";
-
               setSensorData((prev) =>
                 prev.map((s) =>
                   s.sourceId === source._id
@@ -171,19 +157,11 @@ export default function Dashboard() {
     }
   };
 
-  const handleViewDashboard = (dashboard) => {
-    setSelectedDashboard(dashboard);
-  };
-
-  console.log("sensor data", sensorData);
-
-  const handleBackFromView = () => {
-    setSelectedDashboard(null);
-  };
+  const handleViewDashboard = (dashboard) => setSelectedDashboard(dashboard);
+  const handleBackFromView = () => setSelectedDashboard(null);
 
   const handleDeleteDashboard = async (id) => {
     if (!confirm("Are you sure you want to delete this dashboard?")) return;
-
     try {
       await axios.delete(`/dashboard/${id}`);
       setDashboards(dashboards.filter((d) => d._id !== id));
@@ -204,101 +182,107 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-20">
-      {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-30">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">
-                Analytics Platform
-              </h1>
-              <p className="text-slate-400">
-                Real-time monitoring & AI-powered insights
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate("/layouts")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
-              >
-                <Plus size={18} /> Create Dashboard
-              </button>
-              <div className="bg-green-500/10 text-green-400 px-4 py-2 rounded-lg flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="font-medium">All Systems Online</span>
+    <div className="min-h-screen bg-slate-900 flex">
+      {/* Main Content Area */}
+      <div
+        className={`flex-1 pb-20 transition-all duration-300 ${
+          isChatOpen ? "mr-[400px]" : "mr-0"
+        }`}
+      >
+        {/* Header */}
+        <div className="bg-slate-800 border-b border-slate-700 top-0 z-30">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-1">
+                  Analytics Platform
+                </h1>
+                <p className="text-slate-400">
+                  Real-time monitoring & AI-powered insights
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate("/layouts")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                >
+                  <Plus size={18} /> Create Dashboard
+                </button>
+                <div className="bg-green-500/10 text-green-400 px-4 py-2 rounded-lg flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="font-medium">All Systems Online</span>
+                </div>
+                {!isChatOpen && (
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                  >
+                    <MessageSquare size={18} /> AI Assistant
+                  </button>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Tabs */}
-          <div className="flex gap-6 border-b border-slate-700">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`pb-3 px-1 font-medium transition-colors ${
-                activeTab === "overview"
-                  ? "text-blue-400 border-b-2 border-blue-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("dashboards")}
-              className={`pb-3 px-1 font-medium transition-colors ${
-                activeTab === "dashboards"
-                  ? "text-blue-400 border-b-2 border-blue-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              My Dashboards ({dashboards.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("analytics")}
-              className={`pb-3 px-1 font-medium transition-colors ${
-                activeTab === "analytics"
-                  ? "text-blue-400 border-b-2 border-blue-400"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Analytics
-            </button>
+            {/* Tabs */}
+            <div className="flex gap-6 border-b border-slate-700">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`pb-3 px-1 font-medium transition-colors ${
+                  activeTab === "overview"
+                    ? "text-blue-400 border-b-2 border-blue-400"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab("dashboards")}
+                className={`pb-3 px-1 font-medium transition-colors ${
+                  activeTab === "dashboards"
+                    ? "text-blue-400 border-b-2 border-blue-400"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                My Dashboards ({dashboards.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("analytics")}
+                className={`pb-3 px-1 font-medium transition-colors ${
+                  activeTab === "analytics"
+                    ? "text-blue-400 border-b-2 border-blue-400"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Analytics
+              </button>
+            </div>
           </div>
+        </div>
+
+        <div className="p-6">
+          {activeTab === "overview" && (
+            <OverviewTab
+              stats={stats}
+              sensorData={sensorData}
+              dashboards={dashboards}
+            />
+          )}
+          {activeTab === "dashboards" && (
+            <DashboardsTab
+              dashboards={dashboards}
+              loading={loading}
+              onView={handleViewDashboard}
+              onDelete={handleDeleteDashboard}
+            />
+          )}
+          {activeTab === "analytics" && (
+            <AnalyticsTab dashboards={dashboards} />
+          )}
         </div>
       </div>
 
-      <div className="p-6">
-        {activeTab === "overview" && (
-          <OverviewTab
-            stats={stats}
-            sensorData={sensorData}
-            dashboards={dashboards}
-          />
-        )}
-
-        {activeTab === "dashboards" && (
-          <DashboardsTab
-            dashboards={dashboards}
-            loading={loading}
-            onView={handleViewDashboard}
-            onDelete={handleDeleteDashboard}
-          />
-        )}
-
-        {activeTab === "analytics" && <AnalyticsTab dashboards={dashboards} />}
-      </div>
-
+      {/* Side Panel Chatbot */}
       <AIChatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-
-      {!isChatOpen && (
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-40"
-        >
-          <MessageSquare size={28} />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-        </button>
-      )}
     </div>
   );
 }
@@ -306,7 +290,6 @@ export default function Dashboard() {
 // ============ OVERVIEW TAB ============
 const OverviewTab = ({ stats, sensorData, dashboards }) => (
   <>
-    {/* Stats Grid */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         title="Total Dashboards"
@@ -345,8 +328,6 @@ const OverviewTab = ({ stats, sensorData, dashboards }) => (
         subtitle="All systems normal"
       />
     </div>
-
-    {/* Data Table */}
     <DataTable data={sensorData} />
   </>
 );
@@ -365,7 +346,6 @@ const DashboardsTab = ({ dashboards, loading, onView, onDelete }) => {
           <Plus size={18} /> New Dashboard
         </button>
       </div>
-
       {loading ? (
         <div className="text-center py-12">
           <Loader2
@@ -409,56 +389,54 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [layouts, setLayouts] = useState({ lg: [] });
   const [loading, setLoading] = useState(true);
+  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
   }, [dashboard]);
 
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     if (!isEditMode) {
-  //       loadLiveData();
-  //     }
-  //   }, dashboard.config?.refreshInterval || 5000);
-
-  //   return () => clearInterval(interval);
-  // }, [dashboard, isEditMode]);
-
   useEffect(() => {
     if (isEditMode) return;
-    const { Authorization } = getCookie(["Authorization"]);
-    const eventSource = new EventSource(
-      `http://localhost:5008/api/dashboard/${
-        dashboard._id
-      }/stream?token=${Authorization.replace("Bearer ", "")}`
-    );
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("data event", data);
-      setLiveData(data || {});
-    };
-
-    eventSource.onerror = (error) => {
-      console.error("Stream error:", error);
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    // const Authorization = localStorage.getItem("Authorization");
+    // const eventSource = new EventSource(
+    //   `http://localhost:5008/api/dashboard/${
+    //     dashboard._id
+    //   }/stream?token=${Authorization?.replace("Bearer ", "")}`
+    // );
+    // eventSource.onmessage = (event) => {
+    //   const data = JSON.parse(event.data);
+    //   setLiveData(data || {});
+    // };
+    // eventSource.onerror = (error) => {
+    //   console.error("Stream error:", error);
+    //   eventSource.close();
+    // };
+    // return () => eventSource.close();
+    loadDashboard();
   }, [dashboard._id, isEditMode]);
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/dashboard/preview/${dashboard._id}`);
+      setLiveData(response.data || {});
+    } catch (error) {
+      console.error("Load error:", error);
+      toast.error("Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/dashboard/${dashboard._id}`);
-
       if (response.data) {
         const dashboardData = response.data.dashboard;
         const widgetList = dashboardData.config?.widgets || [];
         setWidgets(widgetList);
-
         const gridLayouts = widgetList.map((w) => ({
           i: w._id,
           x: w.position?.x || 0,
@@ -468,10 +446,8 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
           minW: 2,
           minH: 2,
         }));
-
         setLayouts({ lg: gridLayouts });
       }
-
       await loadLiveData();
     } catch (error) {
       console.error("Load dashboard error:", error);
@@ -492,10 +468,9 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
 
   const handleLayoutChange = (layout) => {
     setLayouts({ lg: layout });
-
     const updatedWidgets = widgets.map((widget) => {
       const layoutItem = layout.find((l) => l.i === widget._id);
-      if (layoutItem) {
+      if (layoutItem)
         return {
           ...widget,
           position: {
@@ -505,22 +480,16 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
             h: layoutItem.h,
           },
         };
-      }
       return widget;
     });
-
     setWidgets(updatedWidgets);
   };
 
   const handleSaveLayout = async () => {
     try {
       await axios.put(`/dashboard/${dashboard._id}`, {
-        config: {
-          ...dashboard.config,
-          widgets: widgets,
-        },
+        config: { ...dashboard.config, widgets: widgets },
       });
-
       setIsEditMode(false);
       toast.success("Layout saved successfully!");
     } catch (error) {
@@ -528,8 +497,6 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
       toast.error("Failed to save layout");
     }
   };
-  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
-  const [selectedWidget, setSelectedWidget] = useState(null);
 
   const handleCloseWorkflow = () => {
     setWorkflowEditorOpen(false);
@@ -540,17 +507,13 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
     setWorkflowEditorOpen(true);
   };
 
-  console.log("selectedWidget", selectedWidget);
-
-  if (loading) {
+  if (loading)
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <Loader2 className="animate-spin text-blue-400" size={48} />
       </div>
     );
-  }
-
-  if (workflowEditorOpen && selectedWidget) {
+  if (workflowEditorOpen && selectedWidget)
     return (
       <WorkflowEditor
         widgetId={selectedWidget._id}
@@ -560,11 +523,9 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
         onSave={handleCloseWorkflow}
       />
     );
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 p-6">
-      {/* Header */}
       <div className="max-w-[1920px] mx-auto mb-6">
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between">
@@ -584,7 +545,6 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
                 </p>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               {isEditMode ? (
                 <>
@@ -621,8 +581,6 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
           </div>
         </div>
       </div>
-
-      {/* Dashboard Grid */}
       <div className="max-w-[1920px] mx-auto">
         <ResponsiveGridLayout
           className="layout"
@@ -656,7 +614,7 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
 
 // ============ DASHBOARD WIDGET RENDERER ============
 const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
-  if (!data) {
+  if (!data)
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
@@ -677,9 +635,8 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
         </div>
       </div>
     );
-  }
 
-  if (data.error) {
+  if (data.error)
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
@@ -690,7 +647,6 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
         </div>
       </div>
     );
-  }
 
   const renderWidget = () => {
     switch (widget.type) {
@@ -713,7 +669,7 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
         <div
-          className="flex items-center justify-between  gap-2"
+          className="flex items-center justify-between gap-2"
           style={{ width: "100%" }}
         >
           <div className="flex items-center">
@@ -745,13 +701,10 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
 
 // ============ WIDGET COMPONENTS ============
 const LineChartWidget = ({ widget, data }) => {
-  if (!data || (!data.history && !data.series)) {
+  if (!data || (!data.history && !data.series))
     return <EmptyWidget message="No data available" />;
-  }
-
-  let chartData = [];
-  let seriesKeys = [];
-
+  let chartData = [],
+    seriesKeys = [];
   if (data.type === "timeSeries") {
     chartData = data.history.map((item) => ({
       time: new Date(item.timestamp).toLocaleTimeString(),
@@ -759,25 +712,21 @@ const LineChartWidget = ({ widget, data }) => {
     }));
     seriesKeys = ["value"];
   } else if (data.type === "multiSeries") {
-    // Collect all timestamps
     const timestamps = new Set();
     Object.values(data.series).forEach((arr) =>
       arr.forEach((item) => timestamps.add(item.timestamp))
     );
     const sortedTimestamps = Array.from(timestamps).sort();
-
-    // Build chartData array with all series
     chartData = sortedTimestamps.map((ts) => {
       const point = { time: new Date(ts).toLocaleTimeString() };
       Object.entries(data.series).forEach(([key, arr]) => {
         const item = arr.find((i) => i.timestamp === ts);
-        point[key] = item ? item.value : null; // fill null if missing
+        point[key] = item ? item.value : null;
       });
       return point;
     });
     seriesKeys = Object.keys(data.series);
   }
-
   return (
     <div className="h-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -797,7 +746,7 @@ const LineChartWidget = ({ widget, data }) => {
               key={key}
               type="monotone"
               dataKey={key}
-              stroke={["#3b82f6", "#f97316", "#22c55e", "#e11d48"][idx % 4]} // different colors
+              stroke={["#3b82f6", "#f97316", "#22c55e", "#e11d48"][idx % 4]}
               strokeWidth={2}
               dot={false}
             />
@@ -807,6 +756,7 @@ const LineChartWidget = ({ widget, data }) => {
     </div>
   );
 };
+
 const GaugeWidget = ({ widget, data }) => {
   const value = data.current || 0;
   const min = widget.settings?.min || 0;
@@ -815,7 +765,6 @@ const GaugeWidget = ({ widget, data }) => {
     100,
     Math.max(0, ((value - min) / (max - min)) * 100)
   );
-
   return (
     <div className="h-full flex flex-col items-center justify-center">
       <div className="relative w-48 h-48">
@@ -865,14 +814,12 @@ const StatCardWidget = ({ widget, data }) => (
 );
 
 const TableWidget = ({ widget, data }) => {
-  if (!data.rows || data.rows.length === 0) {
+  if (!data.rows || data.rows.length === 0)
     return <EmptyWidget message="No data available" />;
-  }
-
   return (
     <div className="h-full overflow-auto">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-slate-700">
+        <thead className="top-0 bg-slate-700">
           <tr>
             {data.columns.map((col) => (
               <th key={col} className="text-left p-2 text-slate-300">
@@ -901,12 +848,10 @@ const TableWidget = ({ widget, data }) => {
 
 const BarChartWidget = ({ widget, data }) => {
   if (!data.history) return <EmptyWidget message="No data" />;
-
   const chartData = data.history.slice(-15).map((item) => ({
     time: new Date(item.timestamp).toLocaleTimeString(),
     value: item.value,
   }));
-
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData}>
@@ -1051,7 +996,6 @@ const DashboardCard = ({ dashboard, onView, onEdit, onDelete }) => (
         {dashboard.status || "draft"}
       </div>
     </div>
-
     <div className="flex items-center gap-4 mb-5 text-sm text-slate-400">
       <span className="flex items-center gap-1">
         <Eye size={14} /> {dashboard.viewCount || 0}
@@ -1060,7 +1004,6 @@ const DashboardCard = ({ dashboard, onView, onEdit, onDelete }) => (
         <Clock size={14} /> {new Date(dashboard.updatedAt).toLocaleDateString()}
       </span>
     </div>
-
     <div className="flex gap-2">
       <button
         onClick={() => onView(dashboard)}
@@ -1091,19 +1034,16 @@ const AnalyticsTab = ({ dashboards }) => {
     modbus: { count: 8, percentage: 33.3, trend: 5, dataPoints: 32145 },
     rs485: { count: 7, percentage: 29.2, trend: -3, dataPoints: 28934 },
   };
-
   const performanceMetrics = [
     { name: "Avg Response Time", value: "45ms", trend: -12, status: "good" },
     { name: "Data Success Rate", value: "99.7%", trend: 2.3, status: "good" },
     { name: "Uptime", value: "99.9%", trend: 0.1, status: "excellent" },
     { name: "Failed Requests", value: "23", trend: -45, status: "good" },
   ];
-
   const hourlyActivity = Array.from({ length: 24 }, (_, i) => ({
     hour: i,
     messages: 150 + Math.random() * 200,
   }));
-
   const topDashboards = [...dashboards]
     .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 5);
@@ -1128,8 +1068,6 @@ const AnalyticsTab = ({ dashboards }) => {
           </button>
         </div>
       </div>
-
-      {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {performanceMetrics.map((metric, i) => (
           <div
@@ -1172,9 +1110,7 @@ const AnalyticsTab = ({ dashboards }) => {
           </div>
         ))}
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Protocol Distribution */}
         <div className="lg:col-span-1 bg-slate-800 rounded-xl p-6 border border-slate-700">
           <h3 className="text-white font-semibold mb-5 flex items-center gap-2">
             <Activity size={18} />
@@ -1221,8 +1157,6 @@ const AnalyticsTab = ({ dashboards }) => {
             ))}
           </div>
         </div>
-
-        {/* 24-Hour Activity */}
         <div className="lg:col-span-2 bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-white font-semibold flex items-center gap-2">
@@ -1249,8 +1183,6 @@ const AnalyticsTab = ({ dashboards }) => {
           </div>
         </div>
       </div>
-
-      {/* Top Dashboards & System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <h3 className="text-white font-semibold mb-5 flex items-center gap-2">
@@ -1290,7 +1222,6 @@ const AnalyticsTab = ({ dashboards }) => {
             )}
           </div>
         </div>
-
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <h3 className="text-white font-semibold mb-5 flex items-center gap-2">
             <CheckCircle size={18} />

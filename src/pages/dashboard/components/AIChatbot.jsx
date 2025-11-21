@@ -3,15 +3,15 @@ import {
   MessageSquare,
   X,
   Send,
-  Minimize2,
   Loader2,
   Sparkles,
+  ChevronRight,
 } from "lucide-react";
 
 const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5008/api";
 
-const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
+const AIChatbot = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -34,7 +34,6 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
     scrollToBottom();
   }, [messages, streamingMessage]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -49,20 +48,17 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
     const userMessage = input.trim();
     setInput("");
 
-    // Add user message immediately
     const newMessages = [...messages, { role: "user", content: userMessage }];
     setMessages(newMessages);
     setIsLoading(true);
     setStreamingMessage("");
 
-    // Create abort controller
     abortControllerRef.current = new AbortController();
 
     try {
       const token = localStorage.getItem("Authorization");
       if (!token) throw new Error("Please login first");
 
-      // Build short conversation history (like before)
       const conversationHistory = newMessages
         .slice(-10)
         .filter((msg) => msg.role !== "assistant" || msg.content)
@@ -90,11 +86,9 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      // === SSE stream ===
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = "";
-      let currentConversationId = conversationId;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -113,7 +107,6 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
             const parsed = JSON.parse(dataStr);
 
             if (parsed.type === "conversation_id") {
-              currentConversationId = parsed.conversationId;
               setConversationId(parsed.conversationId);
             }
 
@@ -123,7 +116,6 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
             }
 
             if (parsed.type === "done") {
-              // Push only once, here
               setMessages((prev) => [
                 ...prev,
                 { role: "assistant", content: parsed.fullContent },
@@ -140,9 +132,6 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
           }
         }
       }
-
-      // ✅ Removed the fallback message push here
-      // (so no duplicates — handled in 'done' case only)
     } catch (error) {
       console.error("Chat error:", error);
 
@@ -177,25 +166,10 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
 
   if (!isOpen) return null;
 
-  if (isMinimized) {
-    return (
-      <div
-        className="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full px-6 py-3 shadow-2xl cursor-pointer hover:scale-105 transition-all z-50"
-        onClick={onMinimize}
-      >
-        <div className="flex items-center gap-2">
-          <MessageSquare size={20} className="text-white" />
-          <span className="text-white font-medium">AI Assistant</span>
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 flex flex-col z-50">
+    <div className="fixed top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-700 flex flex-col z-40 shadow-2xl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-t-2xl flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
             <Sparkles size={20} className="text-white" />
@@ -210,22 +184,13 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onMinimize}
-            className="p-1 hover:bg-white/20 rounded transition"
-            title="Minimize"
-          >
-            <Minimize2 size={18} className="text-white" />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-white/20 rounded transition"
-            title="Close"
-          >
-            <X size={18} className="text-white" />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-white/20 rounded-lg transition flex items-center gap-1"
+          title="Close panel"
+        >
+          <ChevronRight size={20} className="text-white" />
+        </button>
       </div>
 
       {/* Messages */}
@@ -279,16 +244,16 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+      <div className="p-4 border-t border-slate-700 bg-slate-800/50 backdrop-blur-sm flex-shrink-0">
         <div className="flex gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything in any language..."
+            placeholder="Ask me anything..."
             disabled={isLoading}
             rows={1}
-            className="flex-1 bg-slate-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none max-h-32 scrollbar-thin scrollbar-thumb-slate-600"
+            className="flex-1 bg-slate-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none max-h-32 scrollbar-thin scrollbar-thumb-slate-600 text-sm"
             style={{ minHeight: "42px" }}
           />
           <button
@@ -306,24 +271,24 @@ const AIChatbot = ({ isOpen, onClose, onMinimize, isMinimized }) => {
         </div>
 
         {/* Quick tips */}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {!isLoading && messages.length === 1 && (
             <>
               <button
                 onClick={() => setInput("What's the current temperature?")}
-                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded-full transition"
+                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-full transition"
               >
                 🌡️ Temperature
               </button>
               <button
                 onClick={() => setInput("Show me my dashboards")}
-                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded-full transition"
+                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-full transition"
               >
                 📊 Dashboards
               </button>
               <button
                 onClick={() => setInput("Are all sensors online?")}
-                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded-full transition"
+                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-full transition"
               >
                 🔌 Status
               </button>
