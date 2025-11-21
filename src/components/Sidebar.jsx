@@ -28,6 +28,11 @@ const Sidebar = () => {
       icon: <Folder size={20} />,
     },
     {
+      name: "Command Center",
+      path: "/command-center",
+      icon: <Folder size={20} />,
+    },
+    {
       name: "Users",
       path: "/users",
       icon: <Users size={20} />,

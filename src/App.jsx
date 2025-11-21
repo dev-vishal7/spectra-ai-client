@@ -21,6 +21,7 @@ import WorkflowEditor from "./pages/WorkflowEditor";
 import LayoutsPage from "./pages/LayoutsPage";
 import Pipelines from "./pages/pipeline";
 import PipelineEditor from "./pages/pipeline/Editor";
+import CommandCenterDark from "./pages/command-center";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -78,6 +79,14 @@ function App() {
                   element={
                     <ProtectedRoute user={user}>
                       <Users />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/command-center"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <CommandCenterDark />
                     </ProtectedRoute>
                   }
                 />
