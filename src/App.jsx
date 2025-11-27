@@ -22,6 +22,9 @@ import LayoutsPage from "./pages/LayoutsPage";
 import Pipelines from "./pages/pipeline";
 import PipelineEditor from "./pages/pipeline/Editor";
 import CommandCenterDark from "./pages/command-center";
+import AppsPage from "./pages/AppsPage";
+import IntegrationStatusPage from "./pages/IntegrationStatusPage";
+import ConfigureIntegrationPage from "./pages/ConfigureIntegrationPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -143,6 +146,30 @@ function App() {
                   element={
                     <ProtectedRoute user={user}>
                       <PipelineEditor />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/apps"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <AppsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/apps/:appId/status"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <IntegrationStatusPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/apps/:appId/configure"
+                  element={
+                    <ProtectedRoute user={user}>
+                      <ConfigureIntegrationPage />
                     </ProtectedRoute>
                   }
                 />

@@ -45,6 +45,11 @@ const Sidebar = () => {
       path: "/users",
       icon: <Users size={20} />,
     },
+       {
+      name: "Apps",
+      path: "/apps",
+      icon: <Zap size={20} />, // Using Zap icon for apps
+    },
   ];
 
   return (
