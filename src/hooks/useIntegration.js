@@ -15,9 +15,18 @@ export const useIntegration = () => {
         config
       );
       if (oauthUrl) {
-        window.location.href = oauthUrl;
-        return { oauthUrl };
-      } else {
+  const popupWindow = window.open(
+    oauthUrl,             
+    'OAuth2 Popup',         
+    'width=600,height=800,scrollbars=yes,resizable=yes' 
+  );
+  if (!popupWindow || popupWindow.closed || typeof popupWindow.closed === 'undefined') {
+    alert('Popup was blocked! Please allow popups for this site.');
+  }
+
+  return { oauthUrl };
+}
+ else {
         // Assume success if no oauthUrl (credential auth)
         return { success: true };
       }

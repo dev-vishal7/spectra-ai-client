@@ -19,8 +19,7 @@ const IntegrationStatus = ({
 }) => {
     const navigate = useNavigate()
   const { name, logo, id } = app;
-  const { status, lastSyncedAt, syncLogs = [], error } = statusData || {};
-
+  const { status, lastSyncedAt, logs:syncLogs = [], error } = statusData || {};
   const isConnected = status === "active" || status === "connected";
 
   return (
@@ -149,7 +148,7 @@ const IntegrationStatus = ({
                         : "Sync failed"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.createdAt).toLocaleString()}
                     </p>
                   </div>
                 </div>
