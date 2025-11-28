@@ -17,6 +17,10 @@ const APPS_INFO = {
     name: "Google Sheets",
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Google_Sheets_logo_%282014-2020%29.svg/1200px-Google_Sheets_logo_%282014-2020%29.svg.png",
   },
+  zoho: {
+    name: "Zoho CRM",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/ZOHO_logo_2023.svg/2560px-ZOHO_logo_2023.svg.png",
+  },
 };
 
 const IntegrationStatusPage = () => {

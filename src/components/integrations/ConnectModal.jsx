@@ -6,15 +6,34 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
     subdomain: "",
     username: "",
     password: "",
+    dataCenter: "com", // Default for Zoho
   });
 
   if (!isOpen || !app) return null;
 
   const isOdoo = app.id === "odoo";
+  const isZoho = app.id === "zoho";
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onConnect(app.id, isOdoo ? {...formData,credentials:{username:formData.username,password:formData.password,subdomain:formData.subdomain}, authType: "credentials"} : {});
+    if (isOdoo) {
+      onConnect(app.id, {
+        ...formData,
+        credentials: {
+          username: formData.username,
+          password: formData.password,
+          subdomain: formData.subdomain,
+        },
+        authType: "credentials",
+      });
+    } else if (isZoho) {
+      onConnect(app.id, {
+        authType: "oauth",
+        dataCenter: formData.dataCenter,
+      });
+    } else {
+      onConnect(app.id, {});
+    }
   };
 
   return (
@@ -48,6 +67,8 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
           <p className="text-gray-400 text-sm text-center mb-6">
             {isOdoo
               ? "Enter your Odoo credentials to establish a secure connection."
+              : isZoho
+              ? "Select your Zoho Data Center region to initiate authorization."
               : "You will be redirected to authorize the connection securely."}
           </p>
 
@@ -122,6 +143,34 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
               </>
             )}
 
+            {isZoho && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-400 ml-1">
+                  Data Center Region
+                </label>
+                <div className="relative">
+                  <Globe
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  />
+                  <select
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                    value={formData.dataCenter}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dataCenter: e.target.value })
+                    }
+                  >
+                    <option value="com">zoho.com (US)</option>
+                    <option value="eu">zoho.eu (Europe)</option>
+                    <option value="in">zoho.in (India)</option>
+                    <option value="com.au">zoho.com.au (Australia)</option>
+                    <option value="jp">zoho.jp (Japan)</option>
+                    <option value="com.cn">zoho.com.cn (China)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -135,7 +184,11 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
               ) : (
                 <>
                   {isOdoo ? <Lock size={18} /> : <Globe size={18} />}
-                  {isOdoo ? "Connect Securely" : "Connect via OAuth"}
+                  {isOdoo
+                    ? "Connect Securely"
+                    : isZoho
+                    ? "Authorize with Zoho"
+                    : "Connect via OAuth"}
                 </>
               )}
             </button>
