@@ -7,12 +7,19 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
     username: "",
     password: "",
     dataCenter: "com", // Default for Zoho
+    brokerUrl: "",
+    topic: "",
+    machineIp: "",
+    protocol: "opcua",
+    port: "",
   });
 
   if (!isOpen || !app) return null;
 
   const isOdoo = app.id === "odoo";
   const isZoho = app.id === "zoho";
+  const isMqtt = app.id === "mqtt";
+  const isMachine = app.id === "machine";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -30,6 +37,25 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
       onConnect(app.id, {
         authType: "oauth",
         dataCenter: formData.dataCenter,
+      });
+    } else if (isMqtt) {
+      onConnect(app.id, {
+        authType: "credentials",
+        credentials: {
+          brokerUrl: formData.brokerUrl,
+          topic: formData.topic,
+          username: formData.username,
+          password: formData.password,
+        },
+      });
+    } else if (isMachine) {
+      onConnect(app.id, {
+        authType: "credentials",
+        credentials: {
+          machineIp: formData.machineIp,
+          protocol: formData.protocol,
+          port: formData.port,
+        },
       });
     } else {
       onConnect(app.id, {});
@@ -69,6 +95,10 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
               ? "Enter your Odoo credentials to establish a secure connection."
               : isZoho
               ? "Select your Zoho Data Center region to initiate authorization."
+              : isMqtt
+              ? "Enter your MQTT Broker details."
+              : isMachine
+              ? "Enter your Machine connection details."
               : "You will be redirected to authorize the connection securely."}
           </p>
 
@@ -171,6 +201,89 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
               </div>
             )}
 
+            {isMqtt && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Broker URL</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="mqtt://broker.hivemq.com"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.brokerUrl}
+                    onChange={(e) => setFormData({ ...formData, brokerUrl: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Topic</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="sensors/temp"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.topic}
+                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Username (Optional)</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Password (Optional)</label>
+                  <input
+                    type="password"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
+            {isMachine && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Machine IP</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="192.168.1.100"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.machineIp}
+                    onChange={(e) => setFormData({ ...formData, machineIp: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Protocol</label>
+                  <select
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.protocol}
+                    onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
+                  >
+                    <option value="opcua">OPC UA</option>
+                    <option value="modbus">Modbus TCP</option>
+                    <option value="ethernetip">EtherNet/IP</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-400 ml-1">Port</label>
+                  <input
+                    type="text"
+                    placeholder="4840"
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-2.5 px-4 text-white text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.port}
+                    onChange={(e) => setFormData({ ...formData, port: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -188,6 +301,8 @@ const ConnectModal = ({ isOpen, onClose, app, onConnect, loading }) => {
                     ? "Connect Securely"
                     : isZoho
                     ? "Authorize with Zoho"
+                    : isMqtt || isMachine
+                    ? "Connect Device"
                     : "Connect via OAuth"}
                 </>
               )}

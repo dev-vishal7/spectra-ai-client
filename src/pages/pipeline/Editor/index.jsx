@@ -14,6 +14,7 @@ import {
   Globe,
   Bell,
   TriangleAlert,
+  Sparkles,
 } from "lucide-react";
 import ReactFlow, {
   Background,
@@ -520,6 +521,67 @@ function ConfigPanel({ node, onChangeField, onDeleteNode, onClose }) {
   );
 }
 
+/* ---------- AI Modal ---------- */
+function AIModal({ isOpen, onClose, onGenerate }) {
+  const [prompt, setPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleGenerate = () => {
+    setGenerating(true);
+    // Simulate AI delay
+    setTimeout(() => {
+      onGenerate(prompt);
+      setGenerating(false);
+      onClose();
+    }, 1500);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#1E293B] border border-gray-800 rounded-xl w-full max-w-lg shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Sparkles className="text-purple-400" size={20} />
+            Generate Pipeline with AI
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+        <p className="text-gray-400 text-sm mb-4">
+          Describe what you want your pipeline to do, and we'll build the
+          initial structure for you.
+        </p>
+        <textarea
+          className="w-full h-32 bg-gray-900/50 border border-gray-700 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-purple-500 mb-4 placeholder:text-gray-600"
+          placeholder="e.g. Read orders from Odoo, filter for high value (> $1000), enrich with customer data from Postgres, and save to BigQuery."
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />
+        <button
+          onClick={handleGenerate}
+          disabled={generating || !prompt.trim()}
+          className="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {generating ? (
+            <>
+              <RefreshCcw className="animate-spin" size={18} />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles size={18} />
+              Generate Pipeline
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- MAIN EDITOR CONTENT ---------- */
 function EditorContent({ id, isTemplate }) {
   const [search, setSearch] = useState("");
@@ -528,6 +590,7 @@ function EditorContent({ id, isTemplate }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [pipelineName, setPipelineName] = useState("Untitled Pipeline");
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -651,6 +714,53 @@ function EditorContent({ id, isTemplate }) {
       });
     },
     [setNodes, setSelectedNode]
+  );
+
+  const handleAIGenerate = useCallback(
+    (prompt) => {
+      // Mock generation logic based on prompt
+      // For demo purposes, we'll create a standard ETL flow
+      const newNodes = [
+        {
+          id: "1",
+          type: "default",
+          position: { x: 100, y: 100 },
+          data: { label: "Odoo Orders", nodeKind: "api" },
+        },
+        {
+          id: "2",
+          type: "default",
+          position: { x: 400, y: 100 },
+          data: {
+            label: "Filter High Value",
+            nodeKind: "filter",
+            predicate: "order.amount > 1000",
+          },
+        },
+        {
+          id: "3",
+          type: "default",
+          position: { x: 700, y: 100 },
+          data: { label: "Enrich Customer", nodeKind: "lookup" },
+        },
+        {
+          id: "4",
+          type: "default",
+          position: { x: 1000, y: 100 },
+          data: { label: "BigQuery Warehouse", nodeKind: "bigquery" },
+        },
+      ];
+      const newEdges = [
+        { id: "e1-2", source: "1", target: "2" },
+        { id: "e2-3", source: "2", target: "3" },
+        { id: "e3-4", source: "3", target: "4" },
+      ];
+      setNodes(newNodes);
+      setEdges(newEdges);
+      setPipelineName("AI Generated: High Value Orders");
+      toast.success("Pipeline generated successfully!");
+    },
+    [setNodes, setEdges]
   );
 
   const runPreview = useCallback(() => {
@@ -792,23 +902,7 @@ function EditorContent({ id, isTemplate }) {
     w-full
     px-4
     py-2
-    text-lg
-    font-semibold
-    text-white
-    placeholder:text-gray-400
-    bg-gray-900
-    border
-    border-gray-700
-    rounded-md
-    focus:outline-none
-    focus:ring-2
-    focus:ring-cyan-500
-    focus:border-cyan-500
-    transition
-    duration-200
-    ease-in-out
-  "
-                  value={pipelineName}
+    text-lg"
                   onChange={(e) => setPipelineName(e.target.value)}
                   placeholder="Untitled Pipeline"
                 />
@@ -920,6 +1014,11 @@ function EditorContent({ id, isTemplate }) {
           </div>
         </div>
       </div>
+      <AIModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onGenerate={handleAIGenerate}
+      />
     </div>
   );
 }

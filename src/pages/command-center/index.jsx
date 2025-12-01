@@ -26,8 +26,11 @@ import {
   Bell,
   BarChart2,
   CheckCircle,
+  Sparkles,
+  Send,
+  Loader2,
 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 
 // Sidebar categories with icons
 const SIDEBAR_CATEGORIES = [
@@ -112,7 +115,69 @@ function StatusBadge({ status }) {
 export default function CommandCenterDark() {
   const [search, setSearch] = useState("");
   const [active, setActive] = useState("all");
+  const [aiQuery, setAiQuery] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
   const navigate = useNavigate();
+
+  const handleAiQuerySubmit = async (e) => {
+    e.preventDefault();
+    if (!aiQuery.trim()) return;
+
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`, // Ensure auth
+        },
+        body: JSON.stringify({ message: aiQuery }),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch AI response");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === "content") {
+              fullContent += data.content;
+              // Update UI with streaming content
+              setAnalysisResult((prev) => ({
+                query: aiQuery,
+                summary: fullContent,
+                // Keep chart data if we had it, or parse it from content if possible
+                // For now, we'll rely on the text response
+              }));
+            } else if (data.type === "done") {
+              // Finalize
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      setAnalysisResult({
+        query: aiQuery,
+        summary: "Sorry, I encountered an error processing your request.",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSummaryClick = (key) => {
     // if (key === "system") return;
@@ -189,13 +254,29 @@ export default function CommandCenterDark() {
       <main className="flex-1 flex flex-col">
         {/* Topbar */}
         <div className="flex items-center gap-4 px-8 py-4 bg-gray-900 border-b border-gray-800">
-          <div className="flex items-center gap-3 w-full max-w-2xl">
-            <input
-              className="flex-1 bg-gray-800 text-gray-100 placeholder-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-600"
-              placeholder="Search workflows..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex items-center gap-3 w-full max-w-3xl">
+            <form onSubmit={handleAiQuerySubmit} className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Sparkles className="h-5 w-5 text-purple-400" />
+              </div>
+              <input
+                className="block w-full pl-10 pr-12 py-3 border border-gray-700 rounded-xl leading-5 bg-gray-800 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 sm:text-sm transition-all shadow-lg"
+                placeholder="Ask AI about your data (e.g., 'Show me efficiency trends for last week')..."
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={isAnalyzing || !aiQuery.trim()}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="h-5 w-5 text-purple-500 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5 text-purple-400 hover:text-purple-300 cursor-pointer" />
+                )}
+              </button>
+            </form>
           </div>
 
           {/* <div className="ml-auto flex items-center gap-3">
@@ -210,6 +291,52 @@ export default function CommandCenterDark() {
         </div>
 
         <div className="p-8 overflow-auto">
+          {/* AI Analysis Result */}
+          {analysisResult && (
+            <div className="mb-8 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-2xl p-6 animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    AI Insight
+                  </h3>
+                  <p className="text-purple-100/70 text-sm mt-1">
+                    "{analysisResult.query}"
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setAnalysisResult(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <span className="sr-only">Close</span>
+                  ×
+                </button>
+              </div>
+              
+              <div className="prose prose-invert max-w-none">
+                <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {analysisResult.summary}
+                </div>
+                
+                {/* Extract Dashboard Link if present */}
+                {analysisResult.summary.includes("/dashboard/") && (
+                   <div className="mt-4">
+                      <button 
+                        onClick={() => {
+                          const match = analysisResult.summary.match(/\/dashboard\/([a-zA-Z0-9]+)/);
+                          if (match) navigate(match[0]);
+                        }}
+                        className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+                      >
+                        <BarChart2 size={18} />
+                        View Generated Dashboard
+                      </button>
+                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {SUMMARY.map((s) => (
