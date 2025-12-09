@@ -10,6 +10,7 @@ import {
 import toast from "react-hot-toast";
 import SourceFormDrawer from "../components/SourceFormDrawer";
 import axios from "axios";
+import { createPipelineForConnectedApp } from "../utils/pipelineGenerator";
 
 const SourcesPage = () => {
   const [sources, setSources] = useState([]);
@@ -46,6 +47,8 @@ const SourcesPage = () => {
         sourceData._id ? "Updating source..." : "Creating source..."
       );
 
+      let isNewSource = !sourceData._id;
+
       if (sourceData._id) {
         // Update existing source (no file upload on update)
         await axios.patch(`/sources/update/${sourceData._id}`, sourceData);
@@ -68,10 +71,37 @@ const SourcesPage = () => {
             },
           });
           toast.success("Excel file uploaded and processed!", { id: toastId });
+          
+          // Generate pipeline for Excel source
+          const pipelineResult = createPipelineForConnectedApp(
+            "excel",
+            sourceData.name,
+            { sourceType: "Excel Upload" }
+          );
+          
+          if (pipelineResult.success) {
+            toast.success(`Pipeline "${pipelineResult.pipeline.name}" created!`);
+          }
         } else {
           // Regular source creation (including API)
           await axios.post("/sources/create", sourceData);
           toast.success("Source created successfully!", { id: toastId });
+          
+          // Generate pipeline for API source
+          if (sourceData.protocol === "API") {
+            const pipelineResult = createPipelineForConnectedApp(
+              "api",
+              sourceData.name,
+              { 
+                sourceType: "API",
+                url: sourceData.apiConfig?.url 
+              }
+            );
+            
+            if (pipelineResult.success) {
+              toast.success(`Pipeline "${pipelineResult.pipeline.name}" created!`);
+            }
+          }
         }
       }
 

@@ -1,8 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import IntegrationStatus from "../components/integrations/IntegrationStatus";
 import { useIntegration } from "../hooks/useIntegration";
+import { createPipelineForConnectedApp } from "../utils/pipelineGenerator";
 
 const APPS_INFO = {
   odoo: {
@@ -26,6 +27,7 @@ const APPS_INFO = {
 const IntegrationStatusPage = () => {
   const { appId } = useParams();
   const navigate = useNavigate();
+  const [pipelineGenerated, setPipelineGenerated] = useState(false);
   const {
     statusData,
     loading,
@@ -44,6 +46,15 @@ const IntegrationStatusPage = () => {
   useEffect(() => {
     fetchStatus(appId);
   }, [appId, fetchStatus]);
+
+  // Generate pipeline when status is active/connected and not already generated
+  useEffect(() => {
+    if (statusData && (statusData.status === 'active' || statusData.status === 'connected') && !pipelineGenerated) {
+      const appName = APPS_INFO[appId]?.name || appId;
+      createPipelineForConnectedApp(appId, appName);
+      setPipelineGenerated(true);
+    }
+  }, [statusData, appId, pipelineGenerated]);
 
   const handleResync = () => {
     triggerSync(appId);

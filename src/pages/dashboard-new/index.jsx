@@ -36,6 +36,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  AreaChart,
+    Area,
+
 } from "recharts";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -459,12 +462,14 @@ const LiveDashboardView = ({ dashboard, onBack }) => {
 
   const loadLiveData = async () => {
     try {
-      const response = await axios.get(`/dashboard/live/${dashboard._id}`);
+      const response = await axios.get(`/dashboard/preview/${dashboard._id}`);
       setLiveData(response.data || {});
     } catch (error) {
       console.error("Load live data error:", error);
     }
   };
+
+
 
   const handleLayoutChange = (layout) => {
     setLayouts({ lg: layout });
@@ -649,19 +654,23 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
     );
 
   const renderWidget = () => {
-    switch (widget.type) {
+     switch (widget.type) {
       case "line-chart":
         return <LineChartWidget widget={widget} data={data} />;
+      case "area-chart":
+        return <AreaChartWidget widget={widget} data={data} />;
+      case "bar-chart":
+        return <BarChartWidget widget={widget} data={data} />;
       case "gauge":
         return <GaugeWidget widget={widget} data={data} />;
       case "stat-card":
         return <StatCardWidget widget={widget} data={data} />;
+      case "alert-list":
+        return <AlertListWidget widget={widget} data={data} />;
       case "table":
         return <TableWidget widget={widget} data={data} />;
-      case "bar-chart":
-        return <BarChartWidget widget={widget} data={data} />;
       default:
-        return <div className="p-4 text-white">Widget: {widget.type}</div>;
+        return <GenericWidget widget={widget} data={data} />;
     }
   };
 
@@ -701,85 +710,106 @@ const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
 
 // ============ WIDGET COMPONENTS ============
 const LineChartWidget = ({ widget, data }) => {
-  if (!data || (!data.history && !data.series))
-    return <EmptyWidget message="No data available" />;
-  let chartData = [],
-    seriesKeys = [];
+  if (!data || (!data.history && !data.series)) {
+    return <EmptyDataWidget message="No data available" />;
+  }
+
+  let chartData = [];
+  let seriesKeys = [];
+
   if (data.type === "timeSeries") {
     chartData = data.history.map((item) => ({
-      time: new Date(item.timestamp).toLocaleTimeString(),
+      time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       value: item.value,
     }));
     seriesKeys = ["value"];
   } else if (data.type === "multiSeries") {
     const timestamps = new Set();
-    Object.values(data.series).forEach((arr) =>
+    Object.values(data.series || {}).forEach((arr) =>
       arr.forEach((item) => timestamps.add(item.timestamp))
     );
-    const sortedTimestamps = Array.from(timestamps).sort();
-    chartData = sortedTimestamps.map((ts) => {
-      const point = { time: new Date(ts).toLocaleTimeString() };
+    chartData = Array.from(timestamps).sort().map((ts) => {
+      const point = { time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       Object.entries(data.series).forEach(([key, arr]) => {
         const item = arr.find((i) => i.timestamp === ts);
         point[key] = item ? item.value : null;
       });
       return point;
     });
-    seriesKeys = Object.keys(data.series);
+    seriesKeys = Object.keys(data.series || {});
   }
+
   return (
-    <div className="h-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
-          <YAxis stroke="#94a3b8" fontSize={12} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#1e293b",
-              border: "1px solid #475569",
-              borderRadius: "8px",
-            }}
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+        <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+        <Tooltip
+          contentStyle={{ backgroundColor: "#1e293b", borderColor: "#475569", color: "#f1f5f9" }}
+        />
+        {seriesKeys.map((key, idx) => (
+          <Line
+            key={key}
+            type="monotone"
+            dataKey={key}
+            stroke={["#3b82f6", "#f97316", "#22c55e", "#e11d48"][idx % 4]}
+            strokeWidth={2}
+            dot={false}
           />
-          {seriesKeys.map((key, idx) => (
-            <Line
-              key={key}
-              type="monotone"
-              dataKey={key}
-              stroke={["#3b82f6", "#f97316", "#22c55e", "#e11d48"][idx % 4]}
-              strokeWidth={2}
-              dot={false}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+const AreaChartWidget = ({ widget, data }) => {
+  if (!data || (!data.history && !data.series)) return <EmptyDataWidget />;
+
+  let chartData = [];
+  // Standardize data
+  if (data.type === "timeSeries") {
+    chartData = data.history.map((item) => ({
+      time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      value: item.value,
+    }));
+  } else {
+     // rudimentary fallback for simple array
+     chartData = (data.history || []).map((item) => ({
+       time: new Date(item.timestamp).toLocaleTimeString(),
+       value: item.value
+     }));
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+        <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+        <Tooltip contentStyle={{ backgroundColor: "#1e293b", borderColor: "#475569" }} />
+        <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorVal)" />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 };
 
 const GaugeWidget = ({ widget, data }) => {
-  const value = data.current || 0;
+  const value = data.current || data.value || 0;
   const min = widget.settings?.min || 0;
   const max = widget.settings?.max || 100;
-  const percentage = Math.min(
-    100,
-    Math.max(0, ((value - min) / (max - min)) * 100)
-  );
+  const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+
   return (
-    <div className="h-full flex flex-col items-center justify-center">
-      <div className="relative w-48 h-48">
-        <svg
-          className="w-full h-full transform -rotate-90"
-          viewBox="0 0 100 100"
-        >
-          <circle
-            cx="50"
-            cy="50"
-            r="40"
-            fill="none"
-            stroke="#334155"
-            strokeWidth="8"
-          />
+    <div className="h-full flex flex-col items-center justify-center relative">
+      <div className="relative w-36 h-36">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#334155" strokeWidth="8" />
           <circle
             cx="50"
             cy="50"
@@ -789,29 +819,85 @@ const GaugeWidget = ({ widget, data }) => {
             strokeWidth="8"
             strokeDasharray={`${percentage * 2.51} 251`}
             strokeLinecap="round"
+            className="transition-all duration-700 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold text-white">{value}</span>
-          <span className="text-slate-400 text-sm">
-            {widget.settings?.unit}
-          </span>
+          <span className="text-3xl font-bold text-white">{formatValue(value)}</span>
+          {data.unit && <span className="text-slate-400 text-xs mt-1">{data.unit}</span>}
         </div>
       </div>
     </div>
   );
 };
+function formatValue(value) {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "number") {
+    // Show 2 decimals if not integer
+    return Number.isInteger(value) ? value : value.toFixed(2);
+  }
+  return String(value);
+}
 
-const StatCardWidget = ({ widget, data }) => (
-  <div className="h-full flex flex-col justify-center items-center text-center">
-    <div className="text-5xl font-bold text-white mb-2">
-      {data.current || 0}
+const StatCardWidget = ({ widget, data }) => {
+  const value = data.current || data.value || 0;
+  const trend = data.trend; // Optional trend
+
+  return (
+    <div className="h-full flex flex-col justify-center px-2">
+      <div className="flex items-end gap-2 mb-2">
+        <span className="text-4xl font-bold text-white tracking-tight">{formatValue(value)}</span>
+        {data.unit && <span className="text-slate-400 text-sm mb-1.5 font-medium">{data.unit}</span>}
+      </div>
+      {trend !== undefined && (
+         <div className={`flex items-center gap-1 text-xs font-medium ${trend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {trend >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            <span>{Math.abs(trend)}% vs last hr</span>
+         </div>
+      )}
     </div>
-    {widget.settings?.unit && (
-      <span className="text-slate-400">{widget.settings.unit}</span>
-    )}
-  </div>
-);
+  );
+};
+const AlertListWidget = ({ widget, data }) => {
+  // Support both 'alerts' and 'items' keys based on backend response
+  const alerts = data.alerts || data.items || [];
+
+  if (alerts.length === 0) return <EmptyDataWidget message="No active alerts" />;
+
+  return (
+    <div className="h-full overflow-y-auto custom-scrollbar space-y-2 pr-1">
+      {alerts.map((alert, idx) => (
+        <div
+          key={alert.id || idx}
+          className={`p-3 rounded-lg border flex gap-3 ${
+            (alert.severity === 'critical' || alert.level === 'critical')
+              ? 'bg-red-500/10 border-red-500/20 text-red-200'
+              : (alert.severity === 'warning' || alert.level === 'warning')
+              ? 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+              : 'bg-blue-500/10 border-blue-500/20 text-blue-200'
+          }`}
+        >
+          <div className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+             (alert.severity === 'critical' || alert.level === 'critical') ? 'bg-red-500' : 
+             (alert.severity === 'warning' || alert.level === 'warning') ? 'bg-amber-500' : 'bg-blue-500'
+          }`} />
+          <div className="flex-1 min-w-0">
+             <div className="flex justify-between items-start">
+               <h4 className="font-semibold text-xs leading-snug">{alert.title || alert.message}</h4>
+               {alert.timestamp && (
+                  <span className="text-[10px] opacity-70 whitespace-nowrap ml-2">
+                    {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+               )}
+             </div>
+             {alert.description && <p className="text-[11px] opacity-80 mt-1 leading-relaxed">{alert.description}</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 
 const TableWidget = ({ widget, data }) => {
   if (!data.rows || data.rows.length === 0)
@@ -845,6 +931,21 @@ const TableWidget = ({ widget, data }) => {
     </div>
   );
 };
+
+
+const EmptyDataWidget = ({ message = "No data" }) => (
+  <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+    <BarChart3 className="text-slate-400 mb-2" size={24} />
+    <p className="text-slate-400 text-xs">{message}</p>
+  </div>
+);
+const GenericWidget = ({ widget, data }) => (
+  <div className="h-full overflow-auto custom-scrollbar p-2">
+    <pre className="text-[10px] text-slate-400 whitespace-pre-wrap">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  </div>
+);
 
 const BarChartWidget = ({ widget, data }) => {
   if (!data.history) return <EmptyWidget message="No data" />;

@@ -81,9 +81,9 @@ const DOMAINS = [
     color: "violet",
     gradient: "from-violet-500 to-purple-500",
     prompts: [
-      "Monitor all sensor data with custom alerts",
-      "Track device health with connectivity status",
-      "Display data trends with historical analysis",
+      "Create a dashboard for Odoo Sales.",
+      "Generate production dashboard.",
+      "Show me energy and sustainability metrics",
     ],
   },
 ];

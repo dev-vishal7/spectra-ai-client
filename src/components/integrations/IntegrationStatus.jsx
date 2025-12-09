@@ -75,12 +75,20 @@ const IntegrationStatus = ({
               {syncing ? "Syncing..." : "Sync Now"}
             </button>
             {isConnected && (
-              <button
-                onClick={() => navigate(`/apps/${app.id || 'odoo'}/configure`)} // Using href for simplicity or pass handler
-                className="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium transition-all border border-gray-600"
-              >
-                Configure
-              </button>
+              <>
+                <button
+                  onClick={() => navigate(`/pipelines`)}
+                  className="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-all border border-emerald-500"
+                >
+                  View Pipeline
+                </button>
+                <button
+                  onClick={() => navigate(`/apps/${app.id || 'odoo'}/configure`)} // Using href for simplicity or pass handler
+                  className="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium transition-all border border-gray-600"
+                >
+                  Configure
+                </button>
+              </>
             )}
             <button
               onClick={onDisconnect}

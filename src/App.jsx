@@ -38,7 +38,10 @@ function App() {
     }
   }, []);
 
-  const HIDE_SIDEBAR_ROUTES = ["/pipelines", "/builder"];
+  const HIDE_SIDEBAR_ROUTES = ["/builder"];
+  // Note: /pipelines/create and /pipelines/edit/:id also contain "/pipelines", preventing sidebar there? 
+  // If the user wants sidebar on pipelines list but not detailed editor, precise check needed.
+  // Assuming existing logic is desired.
   const showSidebar = !HIDE_SIDEBAR_ROUTES.some((r) =>
     location.pathname.includes(r)
   );
@@ -54,18 +57,22 @@ function App() {
     localStorage.removeItem("user"); // Remove user from localStorage
     setUser(null); // Update state to null on logout
   };
-  console.log("showSidebar", showSidebar, location.pathname);
+  
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex h-screen bg-gray-900 overflow-hidden">
       <Toaster position="bottom-right" />
 
-      {/* Conditionally render Header and Sidebar only if the user is logged in */}
-      {user && (
+      {/* Authenticated Layout: Sidebar Left, Header+Content Right */}
+      {user ? (
         <>
-          <Header user={user} onLogout={handleLogout} />
-          <div className="flex flex-1">
-            {showSidebar && <Sidebar />}
-            <div className="flex-1 p-6 bg-gray-900">
+          {showSidebar && <Sidebar />}
+          
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+            {/* Header Sticky at Top of Right Column */}
+            <Header user={user} onLogout={handleLogout} />
+            
+            {/* Scrollable Main Content */}
+            <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
               <Routes>
                 {/* Public Routes */}
 
@@ -194,25 +201,25 @@ function App() {
                   element={<Navigate to={user ? "/dashboard" : "/"} />}
                 />
               </Routes>
-            </div>
+            </main>
           </div>
         </>
-      )}
-
-      {/* If user is not logged in, only show the sign-in or sign-up routes */}
-      {!user && (
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route
-            path="/sign-in"
-            element={<SignInPage onLogin={handleLogin} />}
-          />
-          <Route
-            path="/sign-up"
-            element={<SignUpPage onLogin={handleLogin} />}
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+      ) : (
+        /* Non-Authenticated Layout: Full Screen Routes */
+        <div className="w-full h-full overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/sign-in"
+              element={<SignInPage onLogin={handleLogin} />}
+            />
+            <Route
+              path="/sign-up"
+              element={<SignUpPage onLogin={handleLogin} />}
+            />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
       )}
     </div>
   );

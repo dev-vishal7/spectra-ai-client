@@ -156,7 +156,14 @@ const UserForm = () => {
         )}
 
         {/* Submit Button */}
-        <div className="md:col-span-2 pt-4">
+        <div className="md:col-span-2 pt-4 flex gap-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-full bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-md text-white font-medium transition"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={submitting}

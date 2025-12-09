@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { integrationService } from "../services/integrations/integrationService";
 import toast from "react-hot-toast";
+import { createPipelineForConnectedApp } from "../utils/pipelineGenerator";
 
 export const useIntegration = () => {
   const [loading, setLoading] = useState({});
@@ -28,7 +29,22 @@ export const useIntegration = () => {
 }
  else {
         // Assume success if no oauthUrl (credential auth)
-        return { success: true };
+        // Generate pipeline for the connected app
+        const appNames = {
+          'odoo': 'Odoo ERP',
+          'zoho': 'Zoho CRM',
+          'googlesheets': 'Google Sheets',
+          'urbanpiper': 'UrbanPiper POS',
+        };
+        
+        const appName = appNames[appId] || appId;
+        const pipelineResult = createPipelineForConnectedApp(appId, appName, config);
+        
+        if (pipelineResult.success) {
+          toast.success(`Connected successfully! Pipeline "${pipelineResult.pipeline.name}" created.`);
+        }
+        
+        return { success: true, pipeline: pipelineResult.pipeline };
       }
     } catch (error) {
       console.error(error);
