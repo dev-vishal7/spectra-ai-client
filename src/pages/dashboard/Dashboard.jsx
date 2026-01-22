@@ -17,6 +17,7 @@ import AIChatbot from "./components/AIChatbot";
 import DashboardView from "./components/DashboardView";
 import AnalyticsTab from "./components/AnalyticsTab";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 // Mock dashboards data
 const mockDashboards = [
@@ -68,6 +69,7 @@ export default function Dashboard() {
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDashboard, setSelectedDashboard] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const navigate = useNavigate();
   // Real-time data states
   const [realtimeMetrics, setRealtimeMetrics] = useState({
@@ -141,6 +143,15 @@ export default function Dashboard() {
       lastUpdate: "3s ago",
     },
   ];
+
+  // Fetch Alerts
+  useEffect(() => {
+    axios.get("/pipelines/alerts")
+      .then(res => {
+         if (res.data.success) setAlerts(res.data.alerts);
+      })
+      .catch(err => console.error("Failed to fetch alerts", err));
+  }, []);
 
   // Simulate real-time updates
   useEffect(() => {
@@ -306,6 +317,33 @@ export default function Dashboard() {
                 subtitle="2 resolved today"
               />
             </div>
+
+            {/* Real Alerts Section */}
+            {alerts.length > 0 && (
+              <div className="mb-8 bg-slate-800 rounded-xl p-6 border border-slate-700/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="text-red-400" size={20} />
+                  <h2 className="text-white text-xl font-semibold">Active Alerts</h2>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {alerts.map((alert) => (
+                    <div key={alert._id} className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700 hover:border-slate-600 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${alert.severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">{alert.ruleName}</p>
+                          <p className="text-xs text-slate-400">{alert.message}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                         <div className="text-sm font-bold text-white">{alert.value}</div>
+                         <div className="text-xs text-slate-500">{new Date(alert.triggeredAt).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Real-time Metrics */}
             <div className="mb-8">

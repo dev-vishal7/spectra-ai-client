@@ -12,6 +12,21 @@ import {
   TrendingDown,
   RefreshCw,
   Settings,
+  GripVertical,
+  Edit,
+  Share2,
+  Download,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  Activity,
+  Zap,
+  Clock,
+  Database,
+  Trash2,
+  Plus,
+  MessageSquare
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -36,115 +51,40 @@ import WorkflowEditor from "./WorkflowEditor";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DashboardPreview = () => {
-  const navigate = useNavigate();
   const { id } = useParams();
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
-  const [liveData, setLiveData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [publishing, setPublishing] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
-  const [selectedWidget, setSelectedWidget] = useState(null);
-  const [layouts, setLayouts] = useState({ lg: [] });
 
   useEffect(() => {
     loadDashboard();
   }, [id]);
 
-  useEffect(() => {
-    if (!autoRefresh || !dashboard) return;
-
-    const interval = setInterval(() => {
-      loadLiveData();
-    }, dashboard.config?.refreshInterval || 5000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, dashboard]);
-
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/dashboard/preview/${id}`);
-      const dash = response.data.dashboard;
-      setDashboard(dash);
-      setLiveData(response.data.liveData || {});
-      setLastUpdate(new Date());
-
-      if (dash.config?.widgets) {
-        const generatedLayout = dash.config.widgets.map((w) => ({
-          i: w._id,
-          x: w.position?.x || 0,
-          y: w.position?.y || 0,
-          w: w.position?.w || 4,
-          h: w.position?.h || 4,
-          static: true, // Preview is not editable
-        }));
-        setLayouts({ lg: generatedLayout });
-      }
+      // Try fetching both endpoints to see which works, leaning on /dashboard/{id} first as it returns the full object 
+      // typically needed for LiveDashboardView
+      const response = await axios.get(`/dashboard/${id}`);
+      setDashboard(response.data.dashboard);
     } catch (error) {
       console.error("Load error:", error);
-      toast.error("Failed to load dashboard");
+      // Fallback or error handling
+      try {
+           const previewRes = await axios.get(`/dashboard/preview/${id}`);
+           setDashboard(previewRes.data.dashboard);
+      } catch (err2) {
+           toast.error("Failed to load dashboard");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const loadLiveData = async () => {
-    try {
-      const response = await axios.get(`/dashboard/preview/${id}`);
-      setLiveData(response.data.liveData || {});
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error("Refresh error:", error);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!confirm("Publish this dashboard? It will be visible to all users.")) {
-      return;
-    }
-
-    try {
-      setPublishing(true);
-      await axios.post(`/dashboard/${id}/publish`);
-      toast.success("Dashboard published successfully!");
-      navigate(`/dashboard/view/${id}`);
-    } catch (error) {
-      console.error("Publish error:", error);
-      toast.error("Failed to publish dashboard");
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const handleRegenerate = () => {
-    if (confirm("Are you sure?")) {
-      navigate("/dashboard");
-    }
-  };
-
-  const handleOpenWorkflow = (widget) => {
-    setSelectedWidget(widget);
-    setWorkflowEditorOpen(true);
-  };
-
-  const handleCloseWorkflow = () => {
-    setWorkflowEditorOpen(false);
-    setSelectedWidget(null);
-    loadDashboard();
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2
-            className="animate-spin text-blue-400 mx-auto mb-4"
-            size={48}
-          />
-          <p className="text-white text-lg">Loading dashboard preview...</p>
-        </div>
+        <Loader2 className="animate-spin text-blue-400" size={48} />
       </div>
     );
   }
@@ -156,103 +96,212 @@ const DashboardPreview = () => {
           <AlertCircle className="text-red-400 mx-auto mb-4" size={48} />
           <p className="text-white text-lg mb-4">Dashboard not found</p>
           <button
-            onClick={() => navigate("/layouts")}
+            onClick={() => navigate("/dashboard")}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg"
           >
-            Start Over
+            Go Back
           </button>
         </div>
       </div>
     );
   }
 
-  if (workflowEditorOpen && selectedWidget) {
+  return (
+    <LiveDashboardView 
+        dashboard={dashboard} 
+        onBack={() => navigate("/dashboard")} 
+        isPreviewMode={true}
+    />
+  );
+};
+
+// ============ LIVE DASHBOARD VIEW (Copied from dashboard-new/index.jsx) ============
+const LiveDashboardView = ({ dashboard, onBack, isPreviewMode }) => {
+  const [widgets, setWidgets] = useState([]);
+  const [liveData, setLiveData] = useState({});
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [layouts, setLayouts] = useState({ lg: [] });
+  const [loading, setLoading] = useState(true);
+  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState(null);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [dashboard]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    loadDashboard();
+  }, [dashboard._id, isEditMode]);
+
+  const loadDashboard = async () => {
+    try {
+      // Use preview endpoint for live data
+      const response = await axios.get(`/dashboard/preview/${dashboard._id}`);
+      setLiveData(response.data || {});
+    } catch (error) {
+      console.error("Load error:", error);
+    }
+  };
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      // Start with the passed dashboard config, but re-fetch to be safe
+      const response = await axios.get(`/dashboard/${dashboard._id}`);
+      if (response.data) {
+        const dashboardData = response.data.dashboard;
+        const widgetList = dashboardData.config?.widgets || [];
+        setWidgets(widgetList);
+        const gridLayouts = widgetList.map((w) => ({
+          i: w._id,
+          x: w.position?.x || 0,
+          y: w.position?.y || 0,
+          w: w.position?.w || 6,
+          h: w.position?.h || 3,
+          minW: 2,
+          minH: 2,
+        }));
+        setLayouts({ lg: gridLayouts });
+      }
+      await loadLiveData();
+    } catch (error) {
+      console.error("Load dashboard error:", error);
+      toast.error("Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadLiveData = async () => {
+    try {
+      const response = await axios.get(`/dashboard/preview/${dashboard._id}`);
+      setLiveData(response.data || {});
+    } catch (error) {
+      console.error("Load live data error:", error);
+    }
+  };
+
+  const handleLayoutChange = (layout) => {
+    setLayouts({ lg: layout });
+    const updatedWidgets = widgets.map((widget) => {
+      const layoutItem = layout.find((l) => l.i === widget._id);
+      if (layoutItem)
+        return {
+          ...widget,
+          position: {
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h,
+          },
+        };
+      return widget;
+    });
+    setWidgets(updatedWidgets);
+  };
+
+  const handleSaveLayout = async () => {
+    try {
+      await axios.put(`/dashboard/${dashboard._id}`, {
+        config: { ...dashboard.config, widgets: widgets },
+      });
+      setIsEditMode(false);
+      toast.success("Layout saved successfully!");
+    } catch (error) {
+      console.error("Save layout error:", error);
+      toast.error("Failed to save layout");
+    }
+  };
+
+  const handleCloseWorkflow = () => {
+    setWorkflowEditorOpen(false);
+    setSelectedWidget(null);
+  };
+  const handleOpenWorkflow = (widget) => {
+    setSelectedWidget(widget);
+    setWorkflowEditorOpen(true);
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-400" size={48} />
+      </div>
+    );
+  if (workflowEditorOpen && selectedWidget)
     return (
       <WorkflowEditor
         widgetId={selectedWidget._id}
-        dashboardId={id}
+        dashboardId={dashboard._id}
         workflowId={selectedWidget.workflowId}
         onClose={handleCloseWorkflow}
         onSave={handleCloseWorkflow}
       />
     );
-  }
 
   return (
-    <div className="min-h-full bg-slate-900 p-6 font-sans">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-900 p-6">
       <div className="max-w-[1920px] mx-auto mb-6">
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(-1)}
+                onClick={onBack}
                 className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
               >
                 <ArrowLeft className="text-white" size={20} />
               </button>
               <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold text-white">
-                    {dashboard.name}
-                  </h1>
-                  <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium flex items-center gap-1">
-                    <Eye size={14} />
-                    Preview Mode
-                  </span>
-                </div>
-                <p className="text-slate-400">{dashboard.description}</p>
+                <h1 className="text-2xl font-bold text-white">
+                  {dashboard.name}
+                </h1>
+                <p className="text-slate-400 text-sm">
+                  {dashboard.description}
+                </p>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition ${
-                  autoRefresh
-                    ? "bg-green-500/20 border-green-500/50 text-green-400"
-                    : "bg-slate-700 border-slate-600 text-slate-400"
-                }`}
-              >
-                <RefreshCw
-                  size={16}
-                  className={autoRefresh ? "animate-spin" : ""}
-                />
-                <span className="text-sm font-medium">
-                  {autoRefresh ? "Live" : "Paused"}
-                </span>
-              </button>
-
-              <button
-                onClick={handleRegenerate}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handlePublish}
-                disabled={publishing}
-                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 text-white px-8 py-3 rounded-lg font-medium transition shadow-lg"
-              >
-                {publishing ? (
-                  <>
-                    <Loader2 className="animate-spin" size={20} />
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <Save size={20} />
-                    Publish Dashboard
-                  </>
-                )}
-              </button>
+              {/* Only show edit controls if NOT in strict preview mode (unless we want to allow editing here too)
+                  User asked to "duplicate that page" so I will keep the edit functionality but maybe defaulted to hidden or just present. 
+                  The user said "us page ko hi dikhate hai" so I will leave functionality intact.
+              */}
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={() => setIsEditMode(false)}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveLayout}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-2"
+                  >
+                    <Download size={18} /> Save
+                  </button>
+                </>
+              ) : (
+                <>
+                   {/* In preview we might want to hide Edit button? User said 'same page'. I will keep it. */}
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition flex items-center gap-2"
+                  >
+                    <Edit size={18} /> Edit
+                  </button>
+                  <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition flex items-center gap-2">
+                    <Share2 size={18} /> Share
+                  </button>
+                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-2">
+                    <Download size={18} /> Export
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Dashboard Grid using RGL for perfect layout consistency */}
       <div className="max-w-[1920px] mx-auto">
         <ResponsiveGridLayout
           className="layout"
@@ -260,19 +309,21 @@ const DashboardPreview = () => {
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={100}
-          isDraggable={false}
-          isResizable={false}
-          margin={[24, 24]}
+          isDraggable={isEditMode}
+          isResizable={isEditMode}
+          onLayoutChange={handleLayoutChange}
+          draggableHandle=".drag-handle"
         >
-          {dashboard.config?.widgets?.map((widget) => (
+          {widgets.map((widget) => (
             <div
               key={widget._id}
-              className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-sm"
+              className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden"
             >
-              <WidgetRenderer
+              <DashboardWidget
                 widget={widget}
-                data={liveData[widget._id]}
-                onOpenWorkflow={() => handleOpenWorkflow(widget)}
+                data={liveData?.liveData?.[widget._id]}
+                isEditMode={isEditMode}
+                onOpenWorkflow={handleOpenWorkflow}
               />
             </div>
           ))}
@@ -282,18 +333,44 @@ const DashboardPreview = () => {
   );
 };
 
-// Enhanced Widget Renderer
-const WidgetRenderer = ({ widget, data, onOpenWorkflow }) => {
-  const renderContent = () => {
-    if (data?.error || data?.meta?.error) {
-      return (
-        <ErrorWidget widget={widget} error={data?.error || data?.meta?.error} />
-      );
-    }
+// ============ DASHBOARD WIDGET RENDERER (Copied from dashboard-new/index.jsx) ============
+const DashboardWidget = ({ widget, data, isEditMode, onOpenWorkflow }) => {
+  if (!data)
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
+          <div className="flex items-center gap-2">
+            {isEditMode && (
+              <GripVertical
+                size={16}
+                className="text-slate-400 cursor-move drag-handle"
+              />
+            )}
+            <span className="text-white text-sm font-medium">
+              {widget.title}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="animate-spin text-slate-600" size={32} />
+        </div>
+      </div>
+    );
 
-    if (!data) return <LoadingWidget />;
+  if (data.error)
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
+          <span className="text-white text-sm font-medium">{widget.title}</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center text-red-400">
+          <p>{data.error}</p>
+        </div>
+      </div>
+    );
 
-    switch (widget.type) {
+  const renderWidget = () => {
+     switch (widget.type) {
       case "line-chart":
         return <LineChartWidget widget={widget} data={data} />;
       case "area-chart":
@@ -314,35 +391,40 @@ const WidgetRenderer = ({ widget, data, onOpenWorkflow }) => {
   };
 
   return (
-    <div className="h-full flex flex-col group">
-      {/* Widget Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
-        <h3 className="text-white font-semibold text-sm truncate pr-2">
-          {widget.title}
-        </h3>
-        {widget.hasWorkflow && (
-          <button
-            onClick={onOpenWorkflow}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 hover:text-white"
-            title="Edit Workflow"
-          >
-            <Settings size={14} />
-          </button>
-        )}
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-700/50">
+        <div
+          className="flex items-center justify-between gap-2"
+          style={{ width: "100%" }}
+        >
+          <div className="flex items-center">
+            {isEditMode && (
+              <GripVertical
+                size={16}
+                className="text-slate-400 cursor-move drag-handle"
+              />
+            )}
+            <span className="text-white text-sm font-medium">
+              {widget.title}
+            </span>
+          </div>
+          {isEditMode && (
+            <button
+              onClick={() => onOpenWorkflow(widget)}
+              className="cursor-pointer group-hover:opacity-100 transition-opacity p-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg"
+              title="Edit Workflow"
+            >
+              <Settings size={16} className="text-white" />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="p-4 flex-1 min-h-0 overflow-hidden">{renderContent()}</div>
+      <div className="p-4 flex-1 overflow-auto">{renderWidget()}</div>
     </div>
   );
 };
 
-// --- Widget Implementations ---
-
-const LoadingWidget = () => (
-  <div className="h-full flex flex-col items-center justify-center">
-    <Loader2 className="animate-spin text-slate-600" size={24} />
-  </div>
-);
-
+// ============ WIDGET COMPONENTS (Copied from dashboard-new/index.jsx) ============
 const LineChartWidget = ({ widget, data }) => {
   if (!data || (!data.history && !data.series)) {
     return <EmptyDataWidget message="No data available" />;
@@ -507,39 +589,6 @@ const StatCardWidget = ({ widget, data }) => {
   );
 };
 
-const TableWidget = ({ widget, data }) => {
-  if (!data.rows || data.rows.length === 0) return <EmptyDataWidget />;
-
-  return (
-    <div className="h-full overflow-auto custom-scrollbar">
-      <table className="w-full text-xs text-left">
-        <thead className="bg-slate-700/50 sticky top-0 z-10 backdrop-blur-sm">
-          <tr>
-            {data.columns.map((col) => (
-              <th key={col} className="px-4 py-2 text-slate-300 font-medium whitespace-nowrap">
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.map((row, idx) => (
-            <tr key={row.id || idx} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
-              {data.columns.map((col) => (
-                <td key={col} className="px-4 py-2.5 text-slate-200 whitespace-nowrap">
-                  {col.toLowerCase().includes('tim') 
-                    ? new Date(row[col]).toLocaleString() 
-                    : formatValue(row[col])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
 const AlertListWidget = ({ widget, data }) => {
   // Support both 'alerts' and 'items' keys based on backend response
   const alerts = data.alerts || data.items || [];
@@ -580,17 +629,43 @@ const AlertListWidget = ({ widget, data }) => {
   );
 };
 
+const TableWidget = ({ widget, data }) => {
+  if (!data.rows || data.rows.length === 0) return <EmptyDataWidget />;
+
+  return (
+    <div className="h-full overflow-auto custom-scrollbar">
+      <table className="w-full text-xs text-left">
+        <thead className="bg-slate-700/50 sticky top-0 z-10 backdrop-blur-sm">
+          <tr>
+            {data.columns.map((col) => (
+              <th key={col} className="px-4 py-2 text-slate-300 font-medium whitespace-nowrap">
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((row, idx) => (
+            <tr key={row.id || idx} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+              {data.columns.map((col) => (
+                <td key={col} className="px-4 py-2.5 text-slate-200 whitespace-nowrap">
+                  {col.toLowerCase().includes('tim') 
+                    ? new Date(row[col]).toLocaleString() 
+                    : formatValue(row[col])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const EmptyDataWidget = ({ message = "No data" }) => (
   <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
     <BarChart3 className="text-slate-400 mb-2" size={24} />
     <p className="text-slate-400 text-xs">{message}</p>
-  </div>
-);
-
-const ErrorWidget = ({ widget, error }) => (
-  <div className="h-full flex flex-col items-center justify-center text-center p-4">
-    <AlertCircle className="text-red-400 mb-2" size={24} />
-    <p className="text-red-400 text-xs">{error}</p>
   </div>
 );
 
